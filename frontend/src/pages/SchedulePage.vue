@@ -1143,13 +1143,11 @@ $primary-color: #18a058;
   }
 }
 
-:deep(.n-scrollbar) {
-  &-rail {
-    background-color: $bg-tertiary;
-  }
-  
-  &-content {
-    color: $text-primary;
-  }
+:deep(.n-scrollbar-rail) {
+  background-color: $bg-tertiary;
+}
+
+:deep(.n-scrollbar-content) {
+  color: $text-primary;
 }
 </style>

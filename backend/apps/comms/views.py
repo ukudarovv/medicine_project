@@ -14,6 +14,9 @@ from .serializers import (
     SendManualMessageSerializer, PatientContactSerializer
 )
 from .providers import get_sms_provider
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateViewSet(viewsets.ModelViewSet):

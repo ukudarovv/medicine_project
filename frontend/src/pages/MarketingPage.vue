@@ -115,7 +115,7 @@
       <div class="filters">
         <div class="filter-group">
           <label>Статус:</label>
-          <select v-model="campaignFilters.status">
+          <select v-model="campaignFilters.status" class="filter-select">
             <option value="">Все</option>
             <option value="draft">Черновик</option>
             <option value="scheduled">Запланирована</option>
@@ -571,11 +571,13 @@ export default {
   color: #333;
 }
 
-.filter-group input[type="date"] {
+.filter-group input[type="date"],
+.filter-group .filter-select {
   padding: 6px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
+  min-width: 180px;
 }
 
 .table-container {

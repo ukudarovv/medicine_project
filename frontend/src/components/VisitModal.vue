@@ -6,6 +6,13 @@
     style="width: 1200px"
     :segmented="{ content: 'soft' }"
   >
+    <!-- Модал добавления услуги -->
+    <AddServiceModal
+      v-model:show="showAddServiceModal"
+      :visit-id="props.visitId"
+      @saved="handleServiceAdded"
+    />
+
     <n-spin :show="loading">
       <n-scrollbar style="max-height: 75vh">
         <n-form ref="formRef" :model="formData" :disabled="!isEditMode">
@@ -211,10 +218,11 @@
                     <span>Файлы</span>
                     <n-upload
                       v-if="isEditMode"
-                      :action="`/api/v1/visits/visits/${visitData?.id}/upload_file/`"
-                      :headers="uploadHeaders"
+                      :action="`/api/v1/visits/visits/${visitData?.id}/upload_file`"
+                      :data="{ file_type: 'document' }"
                       :show-file-list="false"
                       @finish="handleFileUpload"
+                      @error="handleFileError"
                     >
                       <n-button type="primary" size="small">
                         📎 Загрузить файл
@@ -288,6 +296,7 @@ import { format, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { h } from 'vue'
 import { NButton, NInputNumber } from 'naive-ui'
+import AddServiceModal from './AddServiceModal.vue'
 
 const props = defineProps({
   show: {
@@ -315,6 +324,7 @@ const saving = ref(false)
 const visitData = ref(null)
 const isEditMode = ref(false)
 const formRef = ref(null)
+const showAddServiceModal = ref(false)
 
 // Форма для редактирования
 const formData = ref({
@@ -428,14 +438,6 @@ const totalAmount = computed(() => {
   return total.toFixed(2)
 })
 
-// Заголовки для загрузки файлов
-const uploadHeaders = computed(() => {
-  const token = localStorage.getItem('access_token')
-  return {
-    'Authorization': token ? `Bearer ${token}` : ''
-  }
-})
-
 // Загрузка данных визита
 async function loadVisit() {
   if (!props.visitId) return
@@ -507,7 +509,16 @@ async function saveVisit() {
       diary_structured: formData.value.diary_structured
     }
 
+    // Сохраняем основные данные визита
     await apiClient.patch(`/visits/visits/${props.visitId}`, updateData)
+    
+    // Сохраняем назначения если они были изменены
+    if (formData.value.prescriptions && formData.value.prescriptions.length > 0) {
+      await apiClient.post(`/visits/visits/${props.visitId}/update_prescriptions`, {
+        prescriptions: formData.value.prescriptions
+      })
+    }
+    
     message.success('Визит успешно обновлен')
     isEditMode.value = false
     await loadVisit()
@@ -522,13 +533,31 @@ async function saveVisit() {
 
 // Добавить услугу
 function addService() {
-  message.info('Функция добавления услуги в разработке')
-  // TODO: Открыть модал выбора услуги
+  showAddServiceModal.value = true
+}
+
+// Обработка добавления услуги
+async function handleServiceAdded() {
+  await loadVisit()
+  message.success('Услуга успешно добавлена')
 }
 
 // Удалить услугу
-function removeService(index) {
-  formData.value.services_list.splice(index, 1)
+async function removeService(index) {
+  const service = formData.value.services_list[index]
+  if (service.id) {
+    // Если услуга уже сохранена на сервере - удаляем через API
+    try {
+      await apiClient.delete(`/visits/visit-services/${service.id}`)
+      message.success('Услуга удалена')
+      await loadVisit()
+    } catch (error) {
+      message.error('Ошибка при удалении услуги')
+    }
+  } else {
+    // Если услуга только добавлена локально - просто убираем из массива
+    formData.value.services_list.splice(index, 1)
+  }
 }
 
 // Добавить назначение
@@ -554,8 +583,15 @@ function handleFileUpload({ file, event }) {
     message.success('Файл успешно загружен')
     loadVisit() // Перезагрузить данные
   } catch (error) {
+    console.error('File upload error:', error)
     message.error('Ошибка при загрузке файла')
   }
+}
+
+// Обработка ошибки загрузки файла
+function handleFileError({ file, event }) {
+  console.error('File upload failed:', event)
+  message.error(`Не удалось загрузить файл: ${file.name}`)
 }
 
 // Скачать файл

@@ -58,6 +58,9 @@ MIDDLEWARE = [
     'apps.core.middleware.TenantMiddleware',
 ]
 
+# Disable trailing slash requirement for REST API
+APPEND_SLASH = False
+
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [

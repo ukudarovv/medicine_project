@@ -22,6 +22,11 @@ apiClient.interceptors.request.use(
       config.headers['X-Branch-Id'] = authStore.currentBranchId
     }
     
+    // Add trailing slash for Django REST Framework compatibility
+    if (config.url && !config.url.endsWith('/') && !config.url.includes('?')) {
+      config.url += '/'
+    }
+    
     return config
   },
   (error) => {

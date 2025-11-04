@@ -138,6 +138,26 @@
       @saved="handleAppointmentSaved"
       @search-patient="searchPatients"
     />
+
+    <!-- Break modal -->
+    <BreakModal
+      v-model:show="showBreakModal"
+      :employee="selectedEmployeeForBreak"
+      :employees="employees"
+      @saved="handleBreakSaved"
+    />
+
+    <!-- Context menu for appointments -->
+    <n-dropdown
+      placement="bottom-start"
+      trigger="manual"
+      :x="contextMenuX"
+      :y="contextMenuY"
+      :options="contextMenuOptions"
+      :show="showContextMenu"
+      :on-clickoutside="() => showContextMenu = false"
+      @select="handleContextMenuSelect"
+    />
   </div>
 </template>
 
@@ -147,6 +167,7 @@ import { useMessage } from 'naive-ui'
 import apiClient from '@/api/axios'
 import { format, parseISO } from 'date-fns'
 import AppointmentFormModal from '@/components/AppointmentFormModal.vue'
+import BreakModal from '@/components/BreakModal.vue'
 
 const message = useMessage()
 
@@ -162,6 +183,12 @@ const showNewAppointment = ref(false)
 const editingAppointment = ref(null)
 const prefilledEmployee = ref(null)
 const prefilledDateTime = ref(null)
+const showBreakModal = ref(false)
+const selectedEmployeeForBreak = ref(null)
+const showContextMenu = ref(false)
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
+const contextMenuAppointment = ref(null)
 const loadingPatients = ref(false)
 const saving = ref(false)
 const gridRef = ref(null)
@@ -218,6 +245,38 @@ const statusOptions = [
   { label: 'Не пришёл', value: 'no_show' },
   { label: 'Отменено', value: 'canceled' }
 ]
+
+const contextMenuOptions = computed(() => [
+  {
+    label: 'Редактировать',
+    key: 'edit',
+    icon: () => '✏️'
+  },
+  {
+    label: 'Копировать',
+    key: 'copy',
+    icon: () => '📋'
+  },
+  {
+    label: 'Перенести',
+    key: 'move',
+    icon: () => '🔄'
+  },
+  {
+    label: 'Отменить',
+    key: 'cancel',
+    icon: () => '🚫'
+  },
+  {
+    type: 'divider',
+    key: 'd1'
+  },
+  {
+    label: 'Удалить',
+    key: 'delete',
+    icon: () => '🗑️'
+  }
+])
 
 
 // Filtered employees
@@ -316,16 +375,18 @@ function handleEmployeeAction(key) {
       viewMode.value = 'week'
       break
     case 'break':
-      message.info(`Добавить перерыв для ${employee.last_name} ${employee.first_name}`)
-      // TODO: Open break modal
+      selectedEmployeeForBreak.value = employee
+      showBreakModal.value = true
       break
     case 'cancel':
-      message.warning(`Отменить рабочий день для ${employee.last_name} ${employee.first_name}`)
-      // TODO: Confirm and cancel day
+      if (confirm(`Отменить рабочий день для ${employee.last_name} ${employee.first_name}?`)) {
+        message.warning('Функция отмены рабочего дня будет реализована')
+        // TODO: Implement cancel day
+      }
       break
     case 'profile':
       message.info(`Открыть профиль ${employee.last_name} ${employee.first_name}`)
-      // TODO: Navigate to employee profile
+      // TODO: Navigate to employee profile or open modal
       break
   }
 }
@@ -357,8 +418,76 @@ function handleColumnClick(event, employee) {
 
 // Show context menu for appointment
 function showAppointmentContextMenu(event, appointment) {
-  message.info(`Контекстное меню для: ${appointment.patient_name}`)
-  // TODO: Implement context menu with options
+  contextMenuX.value = event.clientX
+  contextMenuY.value = event.clientY
+  contextMenuAppointment.value = appointment
+  showContextMenu.value = true
+}
+
+function handleContextMenuSelect(key) {
+  showContextMenu.value = false
+  
+  if (!contextMenuAppointment.value) return
+  
+  switch (key) {
+    case 'edit':
+      openAppointment(contextMenuAppointment.value)
+      break
+    case 'copy':
+      copyAppointment(contextMenuAppointment.value)
+      break
+    case 'move':
+      message.info('Перетащите визит в нужное место или измените время в форме редактирования')
+      openAppointment(contextMenuAppointment.value)
+      break
+    case 'cancel':
+      cancelAppointment(contextMenuAppointment.value)
+      break
+    case 'delete':
+      deleteAppointmentById(contextMenuAppointment.value.id)
+      break
+  }
+}
+
+function copyAppointment(appointment) {
+  // Create a copy without ID
+  prefilledEmployee.value = appointment.employee
+  prefilledDateTime.value = new Date(appointment.start_datetime).getTime()
+  editingAppointment.value = null
+  showNewAppointment.value = true
+  message.info('Создание копии визита')
+}
+
+async function cancelAppointment(appointment) {
+  try {
+    await apiClient.patch(`/calendar/appointments/${appointment.id}`, {
+      status: 'canceled'
+    })
+    message.success('Визит отменен')
+    await loadAppointments()
+  } catch (error) {
+    console.error('Error canceling appointment:', error)
+    message.error('Ошибка отмены визита')
+  }
+}
+
+async function deleteAppointmentById(appointmentId) {
+  if (!confirm('Вы уверены, что хотите удалить этот визит?')) return
+  
+  try {
+    await apiClient.delete(`/calendar/appointments/${appointmentId}`)
+    message.success('Визит удален')
+    await loadAppointments()
+  } catch (error) {
+    console.error('Error deleting appointment:', error)
+    message.error('Ошибка удаления визита')
+  }
+}
+
+function handleBreakSaved(breakData) {
+  message.success('Перерыв добавлен в расписание')
+  // TODO: Save break to backend
+  console.log('Break data:', breakData)
 }
 
 async function loadEmployees() {

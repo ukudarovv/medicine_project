@@ -67,7 +67,11 @@
               </n-form-item>
 
               <!-- Patient quick form (if creating new) -->
-              <template v-if="showCreatePatient || !formData.patient">
+              <template v-if="showCreatePatient">
+                <n-alert type="info" size="small" style="margin-bottom: 12px">
+                  Создание нового пациента
+                </n-alert>
+                
                 <n-grid :cols="3" :x-gap="12">
                   <n-grid-item>
                     <n-form-item label="Фамилия">
@@ -125,6 +129,15 @@
                   <n-checkbox v-model:checked="patientData.add_note">
                     Добавить примечание о пациенте
                   </n-checkbox>
+                </n-space>
+                
+                <n-space style="margin-top: 12px">
+                  <n-button type="primary" @click="createQuickPatient">
+                    ✓ Создать пациента
+                  </n-button>
+                  <n-button @click="showCreatePatient = false">
+                    Отмена
+                  </n-button>
                 </n-space>
               </template>
             </n-space>
@@ -305,7 +318,7 @@ const props = defineProps({
   prefilledDateTime: Number
 })
 
-const emit = defineEmits(['update:show', 'saved'])
+const emit = defineEmits(['update:show', 'saved', 'search-patient'])
 
 const message = useMessage()
 const authStore = useAuthStore()
@@ -539,8 +552,58 @@ function getStatusLabel(status) {
   return option?.label || status
 }
 
-function onSearchPatient(query) {
+async function onSearchPatient(query) {
   emit('search-patient', query)
+}
+
+async function createQuickPatient() {
+  // Validate patient data
+  if (!patientData.value.last_name || !patientData.value.first_name || !patientData.value.phone) {
+    message.error('Заполните обязательные поля: Фамилия, Имя, Телефон')
+    return
+  }
+  
+  try {
+    const apiClient = (await import('@/api/axios')).default
+    
+    const newPatientData = {
+      organization: authStore.user?.organization,
+      last_name: patientData.value.last_name,
+      first_name: patientData.value.first_name,
+      middle_name: patientData.value.middle_name,
+      phone: patientData.value.phone,
+      birth_date: patientData.value.birth_date 
+        ? new Date(patientData.value.birth_date).toISOString().split('T')[0] 
+        : null,
+      sex: 'M', // Default
+      email: '',
+      address: ''
+    }
+    
+    const response = await apiClient.post('/patients/patients', newPatientData)
+    
+    // Set the newly created patient as selected
+    formData.value.patient = response.data.id
+    showCreatePatient.value = false
+    
+    message.success('Пациент создан и выбран')
+    
+    // Clear patient form
+    patientData.value = {
+      last_name: '',
+      first_name: '',
+      middle_name: '',
+      phone: '',
+      phone_additional: '',
+      birth_date: null,
+      medical_card: '',
+      category: false,
+      add_note: false
+    }
+  } catch (error) {
+    console.error('Error creating patient:', error)
+    message.error('Ошибка создания пациента')
+  }
 }
 
 function addService(service) {

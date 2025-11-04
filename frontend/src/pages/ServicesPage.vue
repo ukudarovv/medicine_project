@@ -178,7 +178,14 @@ const categoryTree = computed(() => {
 
 // Filter services by selected category
 const filteredServices = computed(() => {
+  console.log('Filtering services:', {
+    selectedCategory: selectedCategory.value,
+    totalServices: services.value.length,
+    categories: categories.value.length
+  })
+  
   if (!selectedCategory.value) {
+    console.log('No category selected, showing all services:', services.value.length)
     return services.value
   }
   
@@ -193,7 +200,15 @@ const filteredServices = computed(() => {
   }
 
   const categoryIds = getCategoryIds(selectedCategory.value)
-  return services.value.filter(s => categoryIds.includes(s.category))
+  const filtered = services.value.filter(s => categoryIds.includes(s.category))
+  
+  console.log('Category filter result:', {
+    categoryIds,
+    filteredCount: filtered.length,
+    serviceCategories: services.value.map(s => s.category)
+  })
+  
+  return filtered
 })
 
 // Table columns
@@ -382,6 +397,13 @@ async function loadData() {
     ])
     categories.value = categoriesRes.data.results || categoriesRes.data
     services.value = servicesRes.data.results || servicesRes.data
+    
+    console.log('Data loaded:', {
+      categories: categories.value.length,
+      services: services.value.length,
+      sampleService: services.value[0],
+      sampleCategory: categories.value[0]
+    })
   } catch (error) {
     console.error('Error loading data:', error)
     message.error('Ошибка загрузки данных')

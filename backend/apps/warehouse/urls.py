@@ -1,6 +1,11 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import WarehouseViewSet, StockItemViewSet, StockBatchViewSet, StockMoveViewSet
 
-urlpatterns = [
-    # Warehouse endpoints will be added here
-]
+router = DefaultRouter()
+router.register('warehouses', WarehouseViewSet)
+router.register('items', StockItemViewSet)
+router.register('batches', StockBatchViewSet)
+router.register('moves', StockMoveViewSet)
 
+urlpatterns = [path('', include(router.urls))]

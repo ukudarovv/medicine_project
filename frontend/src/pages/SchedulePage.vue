@@ -127,139 +127,17 @@
     </div>
 
     <!-- New appointment modal -->
-    <n-modal 
-      v-model:show="showNewAppointment" 
-      preset="card" 
-      :title="editingAppointment ? 'Редактировать визит' : 'Новый визит'" 
-      style="width: 1000px"
-    >
-      <n-scrollbar style="max-height: 70vh">
-        <n-form ref="formRef" :model="appointmentForm" label-placement="top">
-          <n-grid :cols="2" :x-gap="12">
-            <n-grid-item>
-              <n-form-item label="Сотрудник" path="employee">
-                <n-select
-                  v-model:value="appointmentForm.employee"
-                  :options="employeeOptions"
-                  placeholder="Выберите сотрудника"
-                />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item>
-              <n-form-item label="Кабинет" path="room">
-                <n-select
-                  v-model:value="appointmentForm.room"
-                  :options="roomOptions"
-                  placeholder="Выберите кабинет"
-                  clearable
-                />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
-          
-          <n-form-item label="Пациент" path="patient">
-            <n-select
-              v-model:value="appointmentForm.patient"
-              :options="patientOptions"
-              placeholder="Выберите пациента"
-              filterable
-              :loading="loadingPatients"
-              @search="searchPatients"
-            />
-          </n-form-item>
-
-          <n-grid :cols="2" :x-gap="12">
-            <n-grid-item>
-              <n-form-item label="Дата и время начала" path="start_datetime">
-                <n-date-picker
-                  v-model:value="appointmentForm.start_datetime"
-                  type="datetime"
-                  clearable
-                  style="width: 100%"
-                />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item>
-              <n-form-item label="Дата и время окончания" path="end_datetime">
-                <n-date-picker
-                  v-model:value="appointmentForm.end_datetime"
-                  type="datetime"
-                  clearable
-                  style="width: 100%"
-                />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
-
-          <n-form-item label="Услуги">
-            <n-select
-              v-model:value="appointmentForm.services"
-              :options="serviceOptions"
-              placeholder="Выберите услуги"
-              multiple
-              filterable
-            />
-          </n-form-item>
-
-          <n-grid :cols="2" :x-gap="12">
-            <n-grid-item>
-              <n-form-item label="Статус" path="status">
-                <n-select
-                  v-model:value="appointmentForm.status"
-                  :options="statusOptions"
-                  placeholder="Выберите статус"
-                />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item>
-              <n-form-item label="Источник записи">
-                <n-select
-                  v-model:value="appointmentForm.source"
-                  :options="sourceOptions"
-                  placeholder="Источник"
-                />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
-
-          <n-space>
-            <n-checkbox v-model:checked="appointmentForm.is_primary">
-              Первичный приём
-            </n-checkbox>
-            <n-checkbox v-model:checked="appointmentForm.send_sms">
-              Отправить SMS напоминание
-            </n-checkbox>
-          </n-space>
-
-          <n-form-item label="Примечание" path="note" style="margin-top: 16px">
-            <n-input
-              v-model:value="appointmentForm.note"
-              type="textarea"
-              :rows="3"
-              placeholder="Примечание к записи"
-            />
-          </n-form-item>
-        </n-form>
-      </n-scrollbar>
-
-      <template #footer>
-        <n-space justify="space-between">
-          <n-button v-if="editingAppointment" type="error" @click="deleteAppointment">
-            Удалить визит
-          </n-button>
-          <span v-else></span>
-          <n-space>
-            <n-button @click="handleCloseModal">Отмена</n-button>
-            <n-button type="warning" @click="createAppointment(false)" :loading="saving">
-              Сохранить
-            </n-button>
-            <n-button type="primary" @click="createAppointment(true)" :loading="saving">
-              Сохранить и закрыть
-            </n-button>
-          </n-space>
-        </n-space>
-      </template>
-    </n-modal>
+    <AppointmentFormModal
+      v-model:show="showNewAppointment"
+      :appointment="editingAppointment"
+      :employees="employees"
+      :patients="patients"
+      :services="services"
+      :prefilled-employee="prefilledEmployee"
+      :prefilled-date-time="prefilledDateTime"
+      @saved="handleAppointmentSaved"
+      @search-patient="searchPatients"
+    />
   </div>
 </template>
 
@@ -268,6 +146,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import apiClient from '@/api/axios'
 import { format, parseISO } from 'date-fns'
+import AppointmentFormModal from '@/components/AppointmentFormModal.vue'
 
 const message = useMessage()
 
@@ -281,6 +160,8 @@ const rooms = ref([])
 const services = ref([])
 const showNewAppointment = ref(false)
 const editingAppointment = ref(null)
+const prefilledEmployee = ref(null)
+const prefilledDateTime = ref(null)
 const loadingPatients = ref(false)
 const saving = ref(false)
 const gridRef = ref(null)
@@ -304,21 +185,6 @@ const timeSlots = computed(() => {
     }
   }
   return slots
-})
-
-// Appointment form
-const appointmentForm = ref({
-  employee: null,
-  patient: null,
-  start_datetime: null,
-  end_datetime: null,
-  room: null,
-  status: 'booked',
-  is_primary: false,
-  note: '',
-  services: [],
-  source: 'phone',
-  send_sms: false
 })
 
 // Options
@@ -353,20 +219,6 @@ const statusOptions = [
   { label: 'Отменено', value: 'canceled' }
 ]
 
-const sourceOptions = [
-  { label: 'Телефон', value: 'phone' },
-  { label: 'Онлайн-запись', value: 'online' },
-  { label: 'Администратор', value: 'admin' },
-  { label: 'Рекомендация', value: 'referral' },
-  { label: 'Повторный', value: 'return' }
-]
-
-const serviceOptions = computed(() =>
-  services.value.map((s) => ({
-    label: `${s.code ? s.code + ' - ' : ''}${s.name}`,
-    value: s.id
-  }))
-)
 
 // Filtered employees
 const filteredEmployees = computed(() => {
@@ -422,22 +274,8 @@ function formatTime(datetime) {
 
 function openAppointment(appointment) {
   editingAppointment.value = appointment
-  
-  // Pre-fill form with appointment data
-  appointmentForm.value = {
-    employee: appointment.employee,
-    patient: appointment.patient,
-    start_datetime: new Date(appointment.start_datetime).getTime(),
-    end_datetime: new Date(appointment.end_datetime).getTime(),
-    room: appointment.room,
-    status: appointment.status,
-    is_primary: appointment.is_primary || false,
-    note: appointment.note || '',
-    services: appointment.services || [],
-    source: appointment.source || 'phone',
-    send_sms: false
-  }
-  
+  prefilledEmployee.value = null
+  prefilledDateTime.value = null
   showNewAppointment.value = true
 }
 
@@ -508,14 +346,10 @@ function handleColumnClick(event, employee) {
   const selectedDateTime = new Date(selectedDate.value)
   selectedDateTime.setHours(hours, minutes, 0, 0)
   
-  // Pre-fill form
-  appointmentForm.value.employee = employee.id
-  appointmentForm.value.start_datetime = selectedDateTime.getTime()
-  
-  // Set end time (default 30 minutes)
-  const endDateTime = new Date(selectedDateTime)
-  endDateTime.setMinutes(endDateTime.getMinutes() + 30)
-  appointmentForm.value.end_datetime = endDateTime.getTime()
+  // Set prefilled data for the modal
+  prefilledEmployee.value = employee.id
+  prefilledDateTime.value = selectedDateTime.getTime()
+  editingAppointment.value = null
   
   showNewAppointment.value = true
   message.success(`Создание записи на ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`)
@@ -587,94 +421,34 @@ async function loadRooms() {
   }
 }
 
-async function createAppointment(closeAfter = true) {
+async function handleAppointmentSaved(appointmentData, servicesData) {
   try {
     saving.value = true
     
-    const data = {
-      branch: 1, // TODO: get from auth store
-      employee: appointmentForm.value.employee,
-      patient: appointmentForm.value.patient,
-      start_datetime: new Date(appointmentForm.value.start_datetime).toISOString(),
-      end_datetime: new Date(appointmentForm.value.end_datetime).toISOString(),
-      room: appointmentForm.value.room,
-      status: appointmentForm.value.status,
-      is_primary: appointmentForm.value.is_primary,
-      note: appointmentForm.value.note
-    }
-    
     if (editingAppointment.value) {
-      await apiClient.patch(`/calendar/appointments/${editingAppointment.value.id}`, data)
+      await apiClient.patch(`/calendar/appointments/${editingAppointment.value.id}`, appointmentData)
       message.success('Запись обновлена')
     } else {
-      await apiClient.post('/calendar/appointments', data)
+      await apiClient.post('/calendar/appointments', appointmentData)
       message.success('Запись создана')
-      
-      // Send SMS if requested
-      if (appointmentForm.value.send_sms) {
-        // TODO: Send SMS notification
-        message.info('SMS напоминание будет отправлено')
-      }
     }
     
     await loadAppointments()
     
-    if (closeAfter) {
-      handleCloseModal()
-    }
+    // Reset prefilled data
+    prefilledEmployee.value = null
+    prefilledDateTime.value = null
+    editingAppointment.value = null
   } catch (error) {
-    console.error('Error creating appointment:', error)
+    console.error('Error saving appointment:', error)
     if (error.response?.data) {
       message.error('Ошибка: ' + JSON.stringify(error.response.data))
     } else {
-      message.error('Ошибка создания записи')
+      message.error('Ошибка сохранения записи')
     }
   } finally {
     saving.value = false
   }
-}
-
-function handleCloseModal() {
-  showNewAppointment.value = false
-  editingAppointment.value = null
-  // Reset form
-  appointmentForm.value = {
-    employee: null,
-    patient: null,
-    start_datetime: null,
-    end_datetime: null,
-    room: null,
-    status: 'booked',
-    is_primary: false,
-    note: '',
-    services: [],
-    source: 'phone',
-    send_sms: false
-  }
-}
-
-async function deleteAppointment() {
-  if (!confirm('Вы уверены, что хотите удалить эту запись?')) return
-  
-  try {
-    await apiClient.delete(`/calendar/appointments/${editingAppointment.value.id}`)
-    message.success('Запись удалена')
-    handleCloseModal()
-    await loadAppointments()
-  } catch (error) {
-    console.error('Error deleting appointment:', error)
-    message.error('Ошибка удаления записи')
-  }
-}
-
-function createNewPatient() {
-  message.info('Открытие формы создания нового пациента')
-  // TODO: Navigate to patients page or open patient modal
-}
-
-function formatDateTime(datetime) {
-  if (!datetime) return ''
-  return format(parseISO(datetime), 'dd.MM.yyyy HH:mm')
 }
 
 function updateCurrentTime() {

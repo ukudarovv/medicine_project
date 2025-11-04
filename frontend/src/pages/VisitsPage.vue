@@ -4,6 +4,7 @@
     <VisitModal
       v-model:show="showVisitModal"
       :visit-id="selectedVisitId"
+      @saved="loadVisits"
     />
 
     <n-page-header title="Журнал визитов">

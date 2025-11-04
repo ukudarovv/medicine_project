@@ -23,8 +23,16 @@ apiClient.interceptors.request.use(
     }
     
     // Add trailing slash for Django REST Framework compatibility
-    if (config.url && !config.url.endsWith('/') && !config.url.includes('?')) {
-      config.url += '/'
+    if (config.url && !config.url.endsWith('/')) {
+      // Check if URL has query params
+      const hasParams = config.url.includes('?')
+      if (hasParams) {
+        // Insert slash before query params
+        config.url = config.url.replace('?', '/?')
+      } else {
+        // Just add trailing slash
+        config.url += '/'
+      }
     }
     
     return config

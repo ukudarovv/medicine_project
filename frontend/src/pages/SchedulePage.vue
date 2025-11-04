@@ -1,8 +1,38 @@
 <template>
   <div class="schedule-page">
     <div class="schedule-header">
-      <h1>Расписание</h1>
+      <div class="header-left">
+        <h1>Расписание</h1>
+        <n-button-group>
+          <n-button 
+            :type="viewMode === 'day' ? 'primary' : 'default'" 
+            @click="viewMode = 'day'"
+          >
+            День
+          </n-button>
+          <n-button 
+            :type="viewMode === 'week' ? 'primary' : 'default'" 
+            @click="viewMode = 'week'"
+          >
+            Неделя
+          </n-button>
+          <n-button 
+            :type="viewMode === 'month' ? 'primary' : 'default'" 
+            @click="viewMode = 'month'"
+          >
+            Месяц
+          </n-button>
+        </n-button-group>
+      </div>
       <div class="header-actions">
+        <n-select
+          v-model:value="statusFilter"
+          multiple
+          :options="statusOptions"
+          placeholder="Фильтр по статусам"
+          style="width: 250px"
+          clearable
+        />
         <n-date-picker v-model:value="selectedDate" type="date" clearable />
         <n-button type="primary" @click="showNewAppointment = true">
           + Новый визит
@@ -14,21 +44,32 @@
       <!-- Employee tabs/columns header -->
       <div class="employees-header">
         <div class="time-column-header"></div>
-        <div
+        <n-dropdown
           v-for="employee in employees"
           :key="employee.id"
-          class="employee-header"
-          :class="{ active: selectedEmployees.includes(employee.id) }"
-          @click="toggleEmployee(employee.id)"
+          trigger="click"
+          :options="getEmployeeMenuOptions(employee)"
+          @select="handleEmployeeAction"
         >
-          <div class="employee-avatar" :style="{ backgroundColor: employee.color }">
-            {{ employee.first_name?.[0] || '' }}{{ employee.last_name?.[0] || '' }}
+          <div
+            class="employee-header"
+            :class="{ active: selectedEmployees.includes(employee.id) }"
+            @click.stop="toggleEmployee(employee.id)"
+          >
+            <div class="employee-avatar" :style="{ backgroundColor: employee.color }">
+              {{ employee.first_name?.[0] || '' }}{{ employee.last_name?.[0] || '' }}
+            </div>
+            <div class="employee-info">
+              <div class="employee-name">{{ employee.last_name }} {{ employee.first_name }}</div>
+              <div class="employee-position">{{ employee.position }}</div>
+            </div>
+            <n-icon size="18" class="employee-menu-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+              </svg>
+            </n-icon>
           </div>
-          <div class="employee-info">
-            <div class="employee-name">{{ employee.last_name }} {{ employee.first_name }}</div>
-            <div class="employee-position">{{ employee.position }}</div>
-          </div>
-        </div>
+        </n-dropdown>
       </div>
 
       <!-- Schedule grid -->
@@ -59,6 +100,7 @@
           v-for="employee in filteredEmployees"
           :key="employee.id"
           class="employee-column"
+          @click="handleColumnClick($event, employee)"
         >
           <!-- Appointment blocks -->
           <div
@@ -67,7 +109,8 @@
             class="appointment-block"
             :class="`status-${appointment.status}`"
             :style="getAppointmentStyle(appointment)"
-            @click="openAppointment(appointment)"
+            @click.stop="openAppointment(appointment)"
+            @contextmenu.prevent="showAppointmentContextMenu($event, appointment)"
           >
             <div class="appointment-patient">
               {{ appointment.patient_name }}
@@ -84,87 +127,136 @@
     </div>
 
     <!-- New appointment modal -->
-    <n-modal v-model:show="showNewAppointment" preset="card" title="Новый визит" style="width: 900px">
-      <n-form ref="formRef" :model="appointmentForm">
-        <n-form-item label="Сотрудник" path="employee">
-          <n-select
-            v-model:value="appointmentForm.employee"
-            :options="employeeOptions"
-            placeholder="Выберите сотрудника"
-          />
-        </n-form-item>
-        
-        <n-form-item label="Пациент" path="patient">
-          <n-select
-            v-model:value="appointmentForm.patient"
-            :options="patientOptions"
-            filterable
-            placeholder="Выберите пациента"
-            :loading="loadingPatients"
-            @search="searchPatients"
-          />
-        </n-form-item>
+    <n-modal 
+      v-model:show="showNewAppointment" 
+      preset="card" 
+      :title="editingAppointment ? 'Редактировать визит' : 'Новый визит'" 
+      style="width: 1000px"
+    >
+      <n-scrollbar style="max-height: 70vh">
+        <n-form ref="formRef" :model="appointmentForm" label-placement="top">
+          <n-grid :cols="2" :x-gap="12">
+            <n-grid-item>
+              <n-form-item label="Сотрудник" path="employee">
+                <n-select
+                  v-model:value="appointmentForm.employee"
+                  :options="employeeOptions"
+                  placeholder="Выберите сотрудника"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="Кабинет" path="room">
+                <n-select
+                  v-model:value="appointmentForm.room"
+                  :options="roomOptions"
+                  placeholder="Выберите кабинет"
+                  clearable
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+          
+          <n-form-item label="Пациент" path="patient">
+            <n-select
+              v-model:value="appointmentForm.patient"
+              :options="patientOptions"
+              placeholder="Выберите пациента"
+              filterable
+              :loading="loadingPatients"
+              @search="searchPatients"
+            />
+          </n-form-item>
 
-        <n-grid :cols="2" :x-gap="12">
-          <n-grid-item>
-            <n-form-item label="Дата и время начала" path="start_datetime">
-              <n-date-picker
-                v-model:value="appointmentForm.start_datetime"
-                type="datetime"
-                clearable
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item label="Дата и время окончания" path="end_datetime">
-              <n-date-picker
-                v-model:value="appointmentForm.end_datetime"
-                type="datetime"
-                clearable
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+          <n-grid :cols="2" :x-gap="12">
+            <n-grid-item>
+              <n-form-item label="Дата и время начала" path="start_datetime">
+                <n-date-picker
+                  v-model:value="appointmentForm.start_datetime"
+                  type="datetime"
+                  clearable
+                  style="width: 100%"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="Дата и время окончания" path="end_datetime">
+                <n-date-picker
+                  v-model:value="appointmentForm.end_datetime"
+                  type="datetime"
+                  clearable
+                  style="width: 100%"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
 
-        <n-form-item label="Кабинет" path="room">
-          <n-select
-            v-model:value="appointmentForm.room"
-            :options="roomOptions"
-            placeholder="Выберите кабинет"
-            clearable
-          />
-        </n-form-item>
+          <n-form-item label="Услуги">
+            <n-select
+              v-model:value="appointmentForm.services"
+              :options="serviceOptions"
+              placeholder="Выберите услуги"
+              multiple
+              filterable
+            />
+          </n-form-item>
 
-        <n-form-item label="Статус" path="status">
-          <n-select
-            v-model:value="appointmentForm.status"
-            :options="statusOptions"
-            placeholder="Выберите статус"
-          />
-        </n-form-item>
+          <n-grid :cols="2" :x-gap="12">
+            <n-grid-item>
+              <n-form-item label="Статус" path="status">
+                <n-select
+                  v-model:value="appointmentForm.status"
+                  :options="statusOptions"
+                  placeholder="Выберите статус"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="Источник записи">
+                <n-select
+                  v-model:value="appointmentForm.source"
+                  :options="sourceOptions"
+                  placeholder="Источник"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
 
-        <n-form-item>
-          <n-checkbox v-model:checked="appointmentForm.is_primary">
-            Первичный приём
-          </n-checkbox>
-        </n-form-item>
+          <n-space>
+            <n-checkbox v-model:checked="appointmentForm.is_primary">
+              Первичный приём
+            </n-checkbox>
+            <n-checkbox v-model:checked="appointmentForm.send_sms">
+              Отправить SMS напоминание
+            </n-checkbox>
+          </n-space>
 
-        <n-form-item label="Примечание" path="note">
-          <n-input
-            v-model:value="appointmentForm.note"
-            type="textarea"
-            :rows="3"
-            placeholder="Примечание к записи"
-          />
-        </n-form-item>
-      </n-form>
+          <n-form-item label="Примечание" path="note" style="margin-top: 16px">
+            <n-input
+              v-model:value="appointmentForm.note"
+              type="textarea"
+              :rows="3"
+              placeholder="Примечание к записи"
+            />
+          </n-form-item>
+        </n-form>
+      </n-scrollbar>
 
       <template #footer>
-        <n-space justify="end">
-          <n-button @click="showNewAppointment = false">Отмена</n-button>
-          <n-button type="primary" @click="createAppointment" :loading="saving">
-            Сохранить
+        <n-space justify="space-between">
+          <n-button v-if="editingAppointment" type="error" @click="deleteAppointment">
+            Удалить визит
           </n-button>
+          <span v-else></span>
+          <n-space>
+            <n-button @click="handleCloseModal">Отмена</n-button>
+            <n-button type="warning" @click="createAppointment(false)" :loading="saving">
+              Сохранить
+            </n-button>
+            <n-button type="primary" @click="createAppointment(true)" :loading="saving">
+              Сохранить и закрыть
+            </n-button>
+          </n-space>
         </n-space>
       </template>
     </n-modal>
@@ -186,12 +278,16 @@ const selectedEmployees = ref([])
 const appointments = ref([])
 const patients = ref([])
 const rooms = ref([])
+const services = ref([])
 const showNewAppointment = ref(false)
+const editingAppointment = ref(null)
 const loadingPatients = ref(false)
 const saving = ref(false)
 const gridRef = ref(null)
 const currentTime = ref('')
 const currentTimePosition = ref(0)
+const viewMode = ref('day') // 'day', 'week', 'month'
+const statusFilter = ref([])
 
 // Constants
 const slotHeight = 60 // 30 minutes = 60px
@@ -219,7 +315,10 @@ const appointmentForm = ref({
   room: null,
   status: 'booked',
   is_primary: false,
-  note: ''
+  note: '',
+  services: [],
+  source: 'phone',
+  send_sms: false
 })
 
 // Options
@@ -254,6 +353,21 @@ const statusOptions = [
   { label: 'Отменено', value: 'canceled' }
 ]
 
+const sourceOptions = [
+  { label: 'Телефон', value: 'phone' },
+  { label: 'Онлайн-запись', value: 'online' },
+  { label: 'Администратор', value: 'admin' },
+  { label: 'Рекомендация', value: 'referral' },
+  { label: 'Повторный', value: 'return' }
+]
+
+const serviceOptions = computed(() =>
+  services.value.map((s) => ({
+    label: `${s.code ? s.code + ' - ' : ''}${s.name}`,
+    value: s.id
+  }))
+)
+
 // Filtered employees
 const filteredEmployees = computed(() => {
   if (selectedEmployees.value.length === 0) {
@@ -273,7 +387,14 @@ function toggleEmployee(employeeId) {
 }
 
 function getEmployeeAppointments(employeeId) {
-  return appointments.value.filter((apt) => apt.employee === employeeId)
+  let filtered = appointments.value.filter((apt) => apt.employee === employeeId)
+  
+  // Apply status filter if any selected
+  if (statusFilter.value.length > 0) {
+    filtered = filtered.filter((apt) => statusFilter.value.includes(apt.status))
+  }
+  
+  return filtered
 }
 
 function getAppointmentStyle(appointment) {
@@ -300,7 +421,110 @@ function formatTime(datetime) {
 }
 
 function openAppointment(appointment) {
-  message.info(`Открыть визит: ${appointment.patient_name}`)
+  editingAppointment.value = appointment
+  
+  // Pre-fill form with appointment data
+  appointmentForm.value = {
+    employee: appointment.employee,
+    patient: appointment.patient,
+    start_datetime: new Date(appointment.start_datetime).getTime(),
+    end_datetime: new Date(appointment.end_datetime).getTime(),
+    room: appointment.room,
+    status: appointment.status,
+    is_primary: appointment.is_primary || false,
+    note: appointment.note || '',
+    services: appointment.services || [],
+    source: appointment.source || 'phone',
+    send_sms: false
+  }
+  
+  showNewAppointment.value = true
+}
+
+// Get employee menu options
+function getEmployeeMenuOptions(employee) {
+  return [
+    {
+      label: 'Расписание на неделю',
+      key: `week-${employee.id}`,
+      icon: () => '📅'
+    },
+    {
+      label: 'Добавить перерыв',
+      key: `break-${employee.id}`,
+      icon: () => '☕'
+    },
+    {
+      label: 'Отменить рабочий день',
+      key: `cancel-day-${employee.id}`,
+      icon: () => '🚫'
+    },
+    {
+      label: 'Профиль сотрудника',
+      key: `profile-${employee.id}`,
+      icon: () => '👤'
+    }
+  ]
+}
+
+// Handle employee action from dropdown
+function handleEmployeeAction(key) {
+  const [action, employeeId] = key.split('-')
+  const employee = employees.value.find(e => e.id === parseInt(employeeId))
+  
+  switch (action) {
+    case 'week':
+      message.info(`Показать расписание на неделю для ${employee.last_name} ${employee.first_name}`)
+      viewMode.value = 'week'
+      break
+    case 'break':
+      message.info(`Добавить перерыв для ${employee.last_name} ${employee.first_name}`)
+      // TODO: Open break modal
+      break
+    case 'cancel':
+      message.warning(`Отменить рабочий день для ${employee.last_name} ${employee.first_name}`)
+      // TODO: Confirm and cancel day
+      break
+    case 'profile':
+      message.info(`Открыть профиль ${employee.last_name} ${employee.first_name}`)
+      // TODO: Navigate to employee profile
+      break
+  }
+}
+
+// Handle click on empty slot in column
+function handleColumnClick(event, employee) {
+  const column = event.currentTarget
+  const rect = column.getBoundingClientRect()
+  const clickY = event.clientY - rect.top
+  
+  // Calculate time based on click position
+  const slotIndex = Math.floor(clickY / slotHeight)
+  const totalMinutes = workHoursStart * 60 + slotIndex * 30
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  
+  // Create date with selected time
+  const selectedDateTime = new Date(selectedDate.value)
+  selectedDateTime.setHours(hours, minutes, 0, 0)
+  
+  // Pre-fill form
+  appointmentForm.value.employee = employee.id
+  appointmentForm.value.start_datetime = selectedDateTime.getTime()
+  
+  // Set end time (default 30 minutes)
+  const endDateTime = new Date(selectedDateTime)
+  endDateTime.setMinutes(endDateTime.getMinutes() + 30)
+  appointmentForm.value.end_datetime = endDateTime.getTime()
+  
+  showNewAppointment.value = true
+  message.success(`Создание записи на ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`)
+}
+
+// Show context menu for appointment
+function showAppointmentContextMenu(event, appointment) {
+  message.info(`Контекстное меню для: ${appointment.patient_name}`)
+  // TODO: Implement context menu with options
 }
 
 async function loadEmployees() {
@@ -363,7 +587,7 @@ async function loadRooms() {
   }
 }
 
-async function createAppointment() {
+async function createAppointment(closeAfter = true) {
   try {
     saving.value = true
     
@@ -379,11 +603,25 @@ async function createAppointment() {
       note: appointmentForm.value.note
     }
     
-    await apiClient.post('/calendar/appointments', data)
+    if (editingAppointment.value) {
+      await apiClient.patch(`/calendar/appointments/${editingAppointment.value.id}`, data)
+      message.success('Запись обновлена')
+    } else {
+      await apiClient.post('/calendar/appointments', data)
+      message.success('Запись создана')
+      
+      // Send SMS if requested
+      if (appointmentForm.value.send_sms) {
+        // TODO: Send SMS notification
+        message.info('SMS напоминание будет отправлено')
+      }
+    }
     
-    message.success('Запись создана')
-    showNewAppointment.value = false
     await loadAppointments()
+    
+    if (closeAfter) {
+      handleCloseModal()
+    }
   } catch (error) {
     console.error('Error creating appointment:', error)
     if (error.response?.data) {
@@ -394,6 +632,49 @@ async function createAppointment() {
   } finally {
     saving.value = false
   }
+}
+
+function handleCloseModal() {
+  showNewAppointment.value = false
+  editingAppointment.value = null
+  // Reset form
+  appointmentForm.value = {
+    employee: null,
+    patient: null,
+    start_datetime: null,
+    end_datetime: null,
+    room: null,
+    status: 'booked',
+    is_primary: false,
+    note: '',
+    services: [],
+    source: 'phone',
+    send_sms: false
+  }
+}
+
+async function deleteAppointment() {
+  if (!confirm('Вы уверены, что хотите удалить эту запись?')) return
+  
+  try {
+    await apiClient.delete(`/calendar/appointments/${editingAppointment.value.id}`)
+    message.success('Запись удалена')
+    handleCloseModal()
+    await loadAppointments()
+  } catch (error) {
+    console.error('Error deleting appointment:', error)
+    message.error('Ошибка удаления записи')
+  }
+}
+
+function createNewPatient() {
+  message.info('Открытие формы создания нового пациента')
+  // TODO: Navigate to patients page or open patient modal
+}
+
+function formatDateTime(datetime) {
+  if (!datetime) return ''
+  return format(parseISO(datetime), 'dd.MM.yyyy HH:mm')
 }
 
 function updateCurrentTime() {
@@ -452,10 +733,22 @@ function disconnectWebSocket() {
 // Lifecycle
 let timeUpdateInterval = null
 
+async function loadServices() {
+  try {
+    const response = await apiClient.get('/services/services')
+    services.value = response.data.results || response.data
+  } catch (error) {
+    console.error('Error loading services:', error)
+  }
+}
+
 onMounted(async () => {
-  await loadEmployees()
-  await loadAppointments()
-  await loadRooms()
+  await Promise.all([
+    loadEmployees(),
+    loadAppointments(),
+    loadRooms(),
+    loadServices()
+  ])
   
   updateCurrentTime()
   timeUpdateInterval = setInterval(updateCurrentTime, 60000) // Update every minute
@@ -474,11 +767,21 @@ onUnmounted(() => {
 <style scoped lang="scss">
 @import '@/styles/tokens.scss';
 
+// Dark theme overrides
+$bg-primary: #121212;
+$bg-secondary: #1e1e1e;
+$bg-tertiary: #2d2d2d;
+$text-primary: #e0e0e0;
+$text-secondary: #999999;
+$border-color: #333333;
+$primary-color: #18a058;
+
 .schedule-page {
   height: 100%;
   display: flex;
   flex-direction: column;
   background: $bg-primary;
+  color: $text-primary;
 }
 
 .schedule-header {
@@ -494,6 +797,12 @@ onUnmounted(() => {
     font-size: 24px;
     color: $text-primary;
   }
+}
+
+.header-left {
+  display: flex;
+  gap: $spacing-lg;
+  align-items: center;
 }
 
 .header-actions {
@@ -533,14 +842,25 @@ onUnmounted(() => {
   display: flex;
   gap: $spacing-md;
   align-items: center;
+  position: relative;
   
   &:hover {
-    background: rgba(255, 106, 61, 0.1);
+    background: rgba(24, 160, 88, 0.2);
   }
   
   &.active {
-    background: rgba(255, 106, 61, 0.2);
+    background: rgba(24, 160, 88, 0.3);
     border: 2px solid $primary-color;
+  }
+}
+
+.employee-menu-icon {
+  margin-left: auto;
+  opacity: 0.6;
+  transition: opacity $transition-fast;
+  
+  &:hover {
+    opacity: 1;
   }
 }
 
@@ -735,5 +1055,101 @@ onUnmounted(() => {
   background: $bg-primary;
   padding: 2px 4px;
   border-radius: $radius-sm;
+}
+
+/* Dark theme for components */
+:deep(.n-button-group .n-button) {
+  background-color: $bg-tertiary;
+  border-color: $border-color;
+  color: $text-primary;
+  
+  &:hover {
+    background-color: lighten($bg-tertiary, 5%);
+  }
+}
+
+:deep(.n-button-group .n-button--primary-type) {
+  background-color: $primary-color;
+  border-color: $primary-color;
+  color: white;
+}
+
+:deep(.n-select) {
+  background-color: $bg-tertiary;
+}
+
+:deep(.n-base-selection) {
+  background-color: $bg-tertiary !important;
+  border-color: $border-color !important;
+}
+
+:deep(.n-base-selection-label) {
+  color: $text-primary !important;
+}
+
+:deep(.n-base-selection:hover) {
+  border-color: lighten($border-color, 10%) !important;
+}
+
+:deep(.n-base-selection--active) {
+  border-color: $primary-color !important;
+}
+
+:deep(.n-input) {
+  background-color: $bg-tertiary;
+  border-color: $border-color;
+  color: $text-primary;
+}
+
+:deep(.n-input__input-el) {
+  color: $text-primary;
+}
+
+:deep(.n-date-picker) {
+  background-color: $bg-tertiary;
+}
+
+:deep(.n-checkbox) {
+  color: $text-primary;
+}
+
+:deep(.n-card) {
+  background-color: $bg-secondary;
+  color: $text-primary;
+}
+
+:deep(.n-card__content) {
+  color: $text-primary;
+}
+
+:deep(.n-modal) {
+  background-color: $bg-secondary;
+}
+
+:deep(.n-form-item-label) {
+  color: $text-primary;
+}
+
+:deep(.n-dropdown-menu) {
+  background-color: $bg-tertiary;
+  border-color: $border-color;
+}
+
+:deep(.n-dropdown-option) {
+  color: $text-primary;
+  
+  &:hover {
+    background-color: lighten($bg-tertiary, 5%);
+  }
+}
+
+:deep(.n-scrollbar) {
+  &-rail {
+    background-color: $bg-tertiary;
+  }
+  
+  &-content {
+    color: $text-primary;
+  }
 }
 </style>

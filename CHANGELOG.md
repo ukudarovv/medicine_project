@@ -2,6 +2,127 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2025-11-04
+
+### Added - HR Module
+
+#### Staff/HR Module (Extended)
+- **Position model** - справочник должностей с привязкой к организации
+- **Extended Employee model** with 40+ new fields:
+  - Employment tracking: `employment_status`, `hired_at`, `fired_at`
+  - Online booking: `online_slot_step_minutes`, `min_gap_between_visits_minutes`, `min_gap_between_days_hours`
+  - Documents: СНИЛС, ИНН, power of attorney
+  - Permissions: `can_accept_payments`, `can_be_assistant`, `show_in_schedule`
+  - Warehouse: `warehouse`, `warehouse_lock`
+  - Print roles: `is_chief_accountant`, `is_cashier`, `is_org_head`
+  - Calendar: `calendar_color` for schedule visualization
+  - Access: `is_user_enabled` for system access control
+- **SalarySchemaTemplate** - flexible salary calculation:
+  - Commission from own sales (percentage)
+  - Direction bonus
+  - Created visits percentage
+  - Fixed salary with currency
+  - Minimum rate guarantee
+  - Patient discount consideration
+  - Subscription services percentage
+  - Profit vs revenue calculation
+- **EmployeeSalarySchema** - salary assignment history with date ranges
+- **EmployeeTask** - task management for employees:
+  - Assignment to employees
+  - Status tracking (new/in_progress/done/cancelled)
+  - Deadline tracking
+  - Result reference
+- **EmployeeTaskComment** - task collaboration
+- **EmployeeTaskAttachment** - file attachments for tasks
+- **EmployeeResult** - task results dictionary with position linking
+
+#### API Endpoints
+- `/api/staff/positions/` - CRUD for positions
+- `/api/staff/employees/` - extended with new fields and actions:
+  - `/grant_access` - create user account for employee
+  - `/toggle_user_access` - enable/disable system access
+  - `/assign_salary_schema` - assign salary template
+  - `/doctors` - filter employees by doctor positions
+- `/api/staff/salary-templates/` - CRUD for salary templates:
+  - `/apply_to_employees` - bulk apply template to multiple employees
+- `/api/staff/salary-schemas/` - manage salary assignments
+- `/api/staff/tasks/` - task management:
+  - `/add_comment` - add comment to task
+  - `/upload_attachment` - upload file
+  - `/change_status` - update task status
+- `/api/staff/results/` - CRUD for task results
+- Calendar integration:
+  - `/api/calendar/appointments/available_employees/` - get schedulable employees
+  - `/api/calendar/appointments/online_booking_slots/` - generate slots with employee settings
+  - Extended `/conflicts` endpoint with HR field validation
+
+#### Backend Features
+- **Django Signals** for task notifications:
+  - Task creation notifications
+  - Status change notifications
+  - Comment notifications
+- **Celery Tasks**:
+  - `check_task_deadlines` - periodic deadline checking
+  - `calculate_employee_salary` - comprehensive salary calculation
+- **Database Migrations**:
+  - Backward-compatible position field migration (CharField → FK)
+  - Data migration for legacy fields
+  - 3-step migration process preserving existing data
+- **Advanced Filtering**:
+  - Employees: by position, status, hire dates, branch
+  - Tasks: by assignee, status, deadline range
+  - Positions: by visibility in schedule
+- **RBAC Integration**:
+  - IsBranchMember for basic HR access
+  - IsBranchAdmin for salary and access management
+
+#### Frontend Components (Vue 3)
+- **PositionModal.vue** - position management dialog
+- **EmployeeTaskModal.vue** - comprehensive task management:
+  - Employee selection
+  - Status management
+  - Deadline (date + time)
+  - Comments section
+  - File upload support
+- **SalaryTemplateModal.vue** - salary template configuration:
+  - Commission settings
+  - Fixed salary with currency
+  - Minimum rate
+  - Additional options
+- **StaffHRPage.vue** - comprehensive HR dashboard with 4 tabs:
+  - **Employees tab**: with position/status filters, salary schema display
+  - **Positions tab**: position management
+  - **Tasks tab**: task list with status filters
+  - **Salary Templates tab**: template management
+- Enhanced search and filtering across all sections
+- Color-coded status badges
+- Real-time data updates
+
+#### Calendar Integration
+- `show_in_schedule` flag controls employee visibility
+- `calendar_color` for appointment visualization
+- Individual `online_slot_step_minutes` per employee
+- `min_gap_between_visits_minutes` validation
+- Conflict checking with HR constraints
+- Available employees endpoint for scheduling
+
+#### Documentation
+- Comprehensive HR module documentation (`docs/hr-module.md`)
+- API endpoint reference
+- Migration guide
+- Integration examples
+- Usage examples for all features
+
+### Changed
+- Employee model: position field converted from CharField to FK (Position)
+- Calendar appointment conflicts now consider HR constraints
+- Appointment color can use employee's calendar_color
+
+### Migration Notes
+- Run migrations in order: 0002 → 0003 → 0004
+- Legacy fields (`hire_date`, `fire_date`, `position_legacy`) preserved for compatibility
+- Data automatically migrated from old structure to new
+
 ## [1.0.0] - 2024-11-04
 
 ### Added - MVP Release

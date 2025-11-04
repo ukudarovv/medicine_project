@@ -486,3 +486,200 @@ def calculate_conversions():
         f"{len(updated_reminders)} reminders, {len(updated_campaigns)} campaigns"
     )
 
+
+# ==================== Campaign Tasks ====================
+
+
+@shared_task
+def run_scheduled_campaigns():
+    """
+    Check for scheduled campaigns and start sending batches
+    Runs every minute
+    """
+    from .models import Campaign
+    
+    now = timezone.now()
+    
+    # Find campaigns ready to run
+    campaigns = Campaign.objects.filter(
+        status='scheduled',
+        scheduled_at__lte=now
+    )
+    
+    for campaign in campaigns:
+        # Update status to running
+        campaign.status = 'running'
+        campaign.save()
+        
+        # Trigger batch sending
+        send_campaign_batch.delay(str(campaign.id))
+        logger.info(f"Started campaign {campaign.id}: {campaign.title}")
+
+
+@shared_task
+def send_campaign_batch(campaign_id):
+    """
+    Send a batch of messages for a campaign
+    Respects rate limits and opt-in/out rules
+    """
+    from .models import Campaign, CampaignRecipient, Message, ContactLog
+    from .providers import get_sms_provider
+    from .utils import apply_placeholders_to_message, hash_message_body
+    
+    try:
+        campaign = Campaign.objects.get(id=campaign_id)
+    except Campaign.DoesNotExist:
+        logger.error(f"Campaign {campaign_id} not found")
+        return
+    
+    # Check if campaign is still running
+    if campaign.status not in ['running', 'scheduled']:
+        logger.info(f"Campaign {campaign_id} is {campaign.status}, skipping batch")
+        return
+    
+    # Get provider and rate limit
+    provider = get_sms_provider(campaign.organization)
+    rate_limit = provider.rate_limit_per_min
+    
+    # Get pending recipients (limit by rate)
+    recipients = CampaignRecipient.objects.filter(
+        campaign=campaign,
+        status='pending'
+    ).select_related('patient')[:rate_limit]
+    
+    if not recipients:
+        # No more pending recipients - campaign finished
+        campaign.status = 'finished'
+        campaign.save()
+        logger.info(f"Campaign {campaign_id} finished")
+        return
+    
+    # Get message template
+    try:
+        template = campaign.message_template
+        template_body = template.body
+    except:
+        logger.error(f"Campaign {campaign_id} has no message template")
+        campaign.status = 'failed'
+        campaign.save()
+        return
+    
+    sent_count = 0
+    failed_count = 0
+    total_cost = 0
+    
+    for recipient in recipients:
+        try:
+            # Skip if patient opted out
+            if not recipient.patient.is_marketing_opt_in:
+                recipient.status = 'opted_out'
+                recipient.save()
+                continue
+            
+            # Apply placeholders
+            body = apply_placeholders_to_message(
+                template_body,
+                recipient.patient
+            )
+            
+            # Check antispam
+            body_hash = hash_message_body(body)
+            if check_antispam(recipient.patient, body_hash, window_hours=24):
+                recipient.status = 'skipped'
+                recipient.error = 'Antispam: same message sent recently'
+                recipient.save()
+                logger.warning(f"Skipped recipient {recipient.id} due to antispam")
+                continue
+            
+            # Send message
+            result = provider.send(
+                sender=campaign.sender_name,
+                phone=recipient.phone,
+                body=body
+            )
+            
+            # Create message record
+            message = Message.objects.create(
+                organization=campaign.organization,
+                patient=recipient.patient,
+                channel=campaign.channel,
+                body=body,
+                sender=campaign.sender_name,
+                context={
+                    'source': 'campaign',
+                    'source_id': str(campaign.id),
+                    'recipient_id': str(recipient.id)
+                },
+                status='sent' if result.success else 'failed',
+                cost=result.cost,
+                provider_msg_id=result.message_id if result.success else '',
+                error=result.error,
+                sent_at=timezone.now() if result.success else None
+            )
+            
+            # Create contact log
+            ContactLog.objects.create(
+                organization=campaign.organization,
+                patient=recipient.patient,
+                channel=campaign.channel,
+                body_hash=body_hash,
+                status='sent' if result.success else 'failed',
+                message=message
+            )
+            
+            # Update recipient
+            recipient.status = 'sent' if result.success else 'failed'
+            recipient.provider_msg_id = result.message_id if result.success else ''
+            recipient.error = result.error
+            recipient.cost = result.cost
+            recipient.sent_at = timezone.now() if result.success else None
+            recipient.save()
+            
+            if result.success:
+                sent_count += 1
+                total_cost += float(result.cost)
+            else:
+                failed_count += 1
+            
+            logger.info(f"Sent to {recipient.phone}: {'success' if result.success else 'failed'}")
+            
+        except Exception as e:
+            logger.error(f"Error sending to recipient {recipient.id}: {e}")
+            recipient.status = 'failed'
+            recipient.error = str(e)
+            recipient.save()
+            failed_count += 1
+    
+    # Update campaign stats
+    campaign.sent_count += sent_count
+    campaign.failed_count += failed_count
+    campaign.total_cost += total_cost
+    campaign.save()
+    
+    # Schedule next batch if there are more recipients
+    remaining = CampaignRecipient.objects.filter(
+        campaign=campaign,
+        status='pending'
+    ).count()
+    
+    if remaining > 0 and campaign.status == 'running':
+        # Schedule next batch after 1 minute (to respect rate limits)
+        send_campaign_batch.apply_async(
+            args=[str(campaign.id)],
+            countdown=60
+        )
+        logger.info(f"Scheduled next batch for campaign {campaign_id} ({remaining} remaining)")
+    else:
+        # Campaign finished
+        if campaign.status == 'running':
+            campaign.status = 'finished'
+            campaign.save()
+        logger.info(f"Campaign {campaign_id} completed: {sent_count} sent, {failed_count} failed")
+    
+    return {
+        'sent': sent_count,
+        'failed': failed_count,
+        'cost': total_cost,
+        'remaining': remaining
+    }
+

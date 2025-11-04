@@ -546,8 +546,108 @@ class MessageViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=False, methods=['post'])
     def send_manual(self, request):
-        """Send manual message - TO BE IMPLEMENTED IN E4"""
-        return Response({'message': 'To be implemented in E4'}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        """Send manual message to multiple patients"""
+        from apps.patients.models import Patient
+        from .providers import get_sms_provider
+        from .models import Message, ContactLog
+        from .utils import apply_placeholders_to_message, hash_message_body, calculate_sms_cost
+        from django.utils import timezone
+        
+        serializer = SendManualMessageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        patient_ids = serializer.validated_data['patient_ids']
+        body = serializer.validated_data['body']
+        channel = serializer.validated_data.get('channel', 'sms')
+        
+        # Get patients
+        patients = Patient.objects.filter(
+            id__in=patient_ids,
+            organization=request.user.organization
+        )
+        
+        if not patients.exists():
+            return Response(
+                {'error': 'No valid patients found'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get provider
+        provider = get_sms_provider(request.user.organization)
+        sender = request.user.organization.name[:20] if hasattr(request.user.organization, 'name') else 'CLINIC'
+        
+        # Calculate cost estimate
+        total_cost, segments, total_segments = calculate_sms_cost(
+            body,
+            patients.count(),
+            provider.price_per_sms
+        )
+        
+        # Send to each patient
+        sent_count = 0
+        failed_count = 0
+        total_actual_cost = 0
+        
+        for patient in patients:
+            try:
+                # Apply placeholders
+                personalized_body = apply_placeholders_to_message(body, patient)
+                
+                # Send
+                result = provider.send(
+                    sender=sender,
+                    phone=patient.phone,
+                    body=personalized_body
+                )
+                
+                # Create message record
+                message = Message.objects.create(
+                    organization=request.user.organization,
+                    patient=patient,
+                    channel=channel,
+                    body=personalized_body,
+                    sender=sender,
+                    context={
+                        'source': 'manual',
+                        'source_id': str(request.user.id)
+                    },
+                    status='sent' if result.success else 'failed',
+                    cost=result.cost,
+                    provider_msg_id=result.message_id if result.success else '',
+                    error=result.error,
+                    sent_at=timezone.now() if result.success else None
+                )
+                
+                # Create contact log
+                body_hash = hash_message_body(personalized_body)
+                ContactLog.objects.create(
+                    organization=request.user.organization,
+                    patient=patient,
+                    channel=channel,
+                    body_hash=body_hash,
+                    status='sent' if result.success else 'failed',
+                    message=message
+                )
+                
+                if result.success:
+                    sent_count += 1
+                    total_actual_cost += float(result.cost)
+                else:
+                    failed_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error sending to patient {patient.id}: {e}")
+                failed_count += 1
+        
+        return Response({
+            'success': True,
+            'sent': sent_count,
+            'failed': failed_count,
+            'total_cost': total_actual_cost,
+            'estimated_cost': float(total_cost),
+            'segments_per_message': segments,
+            'total_segments': total_segments
+        })
 
 
 class ContactLogViewSet(viewsets.ReadOnlyModelViewSet):

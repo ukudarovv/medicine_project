@@ -425,3 +425,4 @@ pytest backend/apps/staff/tests/test_api.py
 - [ ] Шаблоны задач
 - [ ] Автоматическое создание задач по расписанию
 
+

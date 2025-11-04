@@ -112,7 +112,96 @@
 
     <!-- Campaigns Tab -->
     <div v-if="activeTab === 'campaigns'" class="tab-content">
-      <p class="coming-soon">Кампании будут реализованы в следующей итерации</p>
+      <div class="filters">
+        <div class="filter-group">
+          <label>Статус:</label>
+          <select v-model="campaignFilters.status">
+            <option value="">Все</option>
+            <option value="draft">Черновик</option>
+            <option value="scheduled">Запланирована</option>
+            <option value="running">Выполняется</option>
+            <option value="paused">Приостановлена</option>
+            <option value="finished">Завершена</option>
+            <option value="failed">Ошибка</option>
+          </select>
+        </div>
+        <button @click="loadCampaigns" class="btn-secondary">Применить</button>
+        <button @click="resetCampaignFilters" class="btn-secondary">Сбросить</button>
+        <button @click="showCampaignModal = true" class="btn-primary">+ Новая рассылка</button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Наименование</th>
+              <th>Статус</th>
+              <th>Канал</th>
+              <th>Получателей</th>
+              <th>Отправлено</th>
+              <th>Доставлено</th>
+              <th>Визитов</th>
+              <th>Сумма</th>
+              <th>Конверсия</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="campaignsLoading">
+              <td colspan="10" class="loading-cell">Загрузка...</td>
+            </tr>
+            <tr v-else-if="campaigns.length === 0">
+              <td colspan="10" class="empty-cell">Нет данных</td>
+            </tr>
+            <tr v-else v-for="campaign in campaigns" :key="campaign.id">
+              <td class="name-cell">{{ campaign.title }}</td>
+              <td>
+                <span class="status-badge" :class="campaign.status">
+                  {{ getStatusLabel(campaign.status) }}
+                </span>
+              </td>
+              <td>{{ campaign.channel.toUpperCase() }}</td>
+              <td class="number-cell">{{ campaign.total_recipients }}</td>
+              <td class="number-cell">{{ campaign.sent_count }}</td>
+              <td class="number-cell">{{ campaign.delivered_count }}</td>
+              <td class="number-cell">{{ campaign.visit_count }}</td>
+              <td class="number-cell">{{ formatMoney(campaign.visit_amount) }}</td>
+              <td class="number-cell">
+                <span
+                  class="conversion-badge"
+                  :class="getConversionClass(campaign.conversion_rate)"
+                >
+                  {{ campaign.conversion_rate }}%
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button @click="exportCampaign(campaign)" class="btn-icon" title="Экспорт">
+                  📥
+                </button>
+                <button
+                  v-if="campaign.status === 'running'"
+                  @click="pauseCampaign(campaign)"
+                  class="btn-icon"
+                  title="Приостановить"
+                >
+                  ⏸
+                </button>
+                <button
+                  v-if="campaign.status === 'paused'"
+                  @click="resumeCampaign(campaign)"
+                  class="btn-icon"
+                  title="Продолжить"
+                >
+                  ▶
+                </button>
+                <button @click="deleteCampaign(campaign)" class="btn-icon" title="Удалить">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Modals -->
@@ -120,6 +209,22 @@
       :visible="showReminderModal"
       :reminder="currentReminder"
       @close="closeReminderModal"
+      @success="handleSuccess"
+      @error="handleError"
+    />
+    
+    <CampaignModal
+      :visible="showCampaignModal"
+      :campaign="currentCampaign"
+      @close="closeCampaignModal"
+      @success="handleSuccess"
+      @error="handleError"
+      @campaign-created="handleCampaignCreated"
+    />
+    
+    <SendMessageModal
+      :visible="showSendMessageModal"
+      @close="showSendMessageModal = false"
       @success="handleSuccess"
       @error="handleError"
     />
@@ -133,30 +238,55 @@
 
 <script>
 import ReminderModal from '@/components/ReminderModal.vue'
-import { getReminders, deleteReminder, toggleReminder } from '@/api/marketing'
+import CampaignModal from '@/components/CampaignModal.vue'
+import SendMessageModal from '@/components/SendMessageModal.vue'
+import { 
+  getReminders, deleteReminder as deleteReminderApi, toggleReminder,
+  getCampaigns, deleteCampaign as deleteCampaignApi, pauseCampaign as pauseCampaignApi,
+  resumeCampaign as resumeCampaignApi, exportCampaign as exportCampaignApi
+} from '@/api/marketing'
 
 export default {
   name: 'MarketingPage',
   components: {
     ReminderModal,
+    CampaignModal,
+    SendMessageModal,
   },
   data() {
     return {
       activeTab: 'reminders',
       loading: false,
       reminders: [],
+      campaigns: [],
+      campaignsLoading: false,
       showReminderModal: false,
+      showCampaignModal: false,
       showSendMessageModal: false,
       currentReminder: null,
+      currentCampaign: null,
       notification: null,
       filters: {
         period_from: '',
         period_to: '',
       },
+      campaignFilters: {
+        status: '',
+      },
     }
   },
   mounted() {
     this.loadReminders()
+    this.loadCampaigns()
+  },
+  watch: {
+    activeTab(val) {
+      if (val === 'campaigns') {
+        this.loadCampaigns()
+      } else if (val === 'reminders') {
+        this.loadReminders()
+      }
+    },
   },
   methods: {
     async loadReminders() {
@@ -208,7 +338,7 @@ export default {
       if (!confirm(`Удалить напоминание "${reminder.name}"?`)) return
 
       try {
-        await deleteReminder(reminder.id)
+        await deleteReminderApi(reminder.id)
         this.handleSuccess('Напоминание удалено')
         this.loadReminders()
       } catch (error) {
@@ -220,10 +350,93 @@ export default {
       this.showReminderModal = false
       this.currentReminder = null
     },
+    
+    // Campaign methods
+    async loadCampaigns() {
+      this.campaignsLoading = true
+      try {
+        const params = {}
+        if (this.campaignFilters.status) params.status = this.campaignFilters.status
+
+        const response = await getCampaigns(params)
+        this.campaigns = response.data
+      } catch (error) {
+        console.error('Error loading campaigns:', error)
+        this.handleError('Ошибка загрузки кампаний')
+      } finally {
+        this.campaignsLoading = false
+      }
+    },
+    resetCampaignFilters() {
+      this.campaignFilters = { status: '' }
+      this.loadCampaigns()
+    },
+    async pauseCampaign(campaign) {
+      try {
+        await pauseCampaignApi(campaign.id)
+        campaign.status = 'paused'
+        this.handleSuccess('Кампания приостановлена')
+      } catch (error) {
+        console.error('Error pausing campaign:', error)
+        this.handleError('Ошибка приостановки')
+      }
+    },
+    async resumeCampaign(campaign) {
+      try {
+        await resumeCampaignApi(campaign.id)
+        campaign.status = 'running'
+        this.handleSuccess('Кампания возобновлена')
+      } catch (error) {
+        console.error('Error resuming campaign:', error)
+        this.handleError('Ошибка возобновления')
+      }
+    },
+    async exportCampaign(campaign) {
+      try {
+        const response = await exportCampaignApi(campaign.id)
+        // Create download link
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `campaign_${campaign.id}_results.xlsx`)
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        this.handleSuccess('Экспорт завершён')
+      } catch (error) {
+        console.error('Error exporting campaign:', error)
+        this.handleError('Ошибка экспорта')
+      }
+    },
+    async deleteCampaign(campaign) {
+      if (!confirm(`Удалить кампанию "${campaign.title}"?`)) return
+
+      try {
+        await deleteCampaignApi(campaign.id)
+        this.handleSuccess('Кампания удалена')
+        this.loadCampaigns()
+      } catch (error) {
+        console.error('Error deleting campaign:', error)
+        this.handleError('Ошибка удаления')
+      }
+    },
+    closeCampaignModal() {
+      this.showCampaignModal = false
+      this.currentCampaign = null
+    },
+    handleCampaignCreated(campaign) {
+      this.currentCampaign = campaign
+    },
+    
+    // Common methods
     handleSuccess(message) {
       this.notification = { type: 'success', message }
       setTimeout(() => (this.notification = null), 3000)
-      this.loadReminders()
+      if (this.activeTab === 'reminders') {
+        this.loadReminders()
+      } else if (this.activeTab === 'campaigns') {
+        this.loadCampaigns()
+      }
     },
     handleError(message) {
       this.notification = { type: 'error', message }
@@ -237,6 +450,17 @@ export default {
       if (rate >= 10) return 'high'
       if (rate >= 5) return 'medium'
       return 'low'
+    },
+    getStatusLabel(status) {
+      const labels = {
+        draft: 'Черновик',
+        scheduled: 'Запланирована',
+        running: 'Выполняется',
+        paused: 'Приостановлена',
+        finished: 'Завершена',
+        failed: 'Ошибка',
+      }
+      return labels[status] || status
     },
   },
 }
@@ -412,6 +636,44 @@ export default {
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.draft {
+  background: #95a5a6;
+  color: #fff;
+}
+
+.status-badge.scheduled {
+  background: #f39c12;
+  color: #fff;
+}
+
+.status-badge.running {
+  background: #3498db;
+  color: #fff;
+}
+
+.status-badge.paused {
+  background: #e67e22;
+  color: #fff;
+}
+
+.status-badge.finished {
+  background: #27ae60;
+  color: #fff;
+}
+
+.status-badge.failed {
+  background: #e74c3c;
+  color: #fff;
 }
 
 .conversion-badge {

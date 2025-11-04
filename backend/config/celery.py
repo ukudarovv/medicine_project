@@ -47,5 +47,10 @@ app.conf.beat_schedule = {
         'task': 'apps.comms.tasks.calculate_conversions',
         'schedule': crontab(hour='2', minute='0'),  # Daily at 2:00 AM
     },
+    # Campaign tasks
+    'run-scheduled-campaigns': {
+        'task': 'apps.comms.tasks.run_scheduled_campaigns',
+        'schedule': crontab(minute='*/1'),  # Every minute
+    },
 }
 

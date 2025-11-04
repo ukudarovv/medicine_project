@@ -94,7 +94,7 @@ const message = useMessage()
 
 // Settings
 const hideRFFields = ref(true)
-const apiUrl = ref(import.meta.env.VITE_API_URL || 'http://localhost:8000/api')
+const apiUrl = ref(import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1')
 
 function handleSave() {
   // Save to localStorage

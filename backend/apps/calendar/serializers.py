@@ -117,12 +117,13 @@ class AppointmentListSerializer(serializers.ModelSerializer):
     """
     employee_name = serializers.CharField(source='employee.full_name', read_only=True)
     patient_name = serializers.CharField(source='patient.full_name', read_only=True)
+    patient_phone = serializers.CharField(source='patient.phone', read_only=True)
     color = serializers.CharField(read_only=True)
     
     class Meta:
         model = Appointment
         fields = [
-            'id', 'employee', 'employee_name', 'patient', 'patient_name',
+            'id', 'employee', 'employee_name', 'patient', 'patient_name', 'patient_phone',
             'room', 'start_datetime', 'end_datetime',
             'status', 'is_primary', 'color'
         ]

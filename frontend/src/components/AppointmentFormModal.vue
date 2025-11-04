@@ -383,8 +383,7 @@ const formData = ref({
   room: null,
   status: 'booked',
   is_primary: true,
-  note: '',
-  source: 'admin'
+  note: ''
 })
 
 const patientData = ref({
@@ -749,8 +748,7 @@ function resetForm() {
     room: null,
     status: 'booked',
     is_primary: true,
-    note: '',
-    source: 'admin'
+    note: ''
   }
   patientData.value = {
     last_name: '',
@@ -800,8 +798,7 @@ async function handleSave(closeAfter = false) {
       room: formData.value.room,
       status: formData.value.status,
       is_primary: formData.value.is_primary,
-      note: formData.value.note,
-      source: formData.value.source
+      note: formData.value.note
     }
 
     console.log('Saving appointment:', data)
@@ -853,8 +850,7 @@ watch(
         room: newVal.room,
         status: newVal.status,
         is_primary: newVal.is_primary || false,
-        note: newVal.note || '',
-        source: newVal.source || 'admin'
+        note: newVal.note || ''
       }
     }
   },

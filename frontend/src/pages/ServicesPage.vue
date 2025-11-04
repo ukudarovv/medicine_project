@@ -36,7 +36,7 @@
         bordered
         :width="300"
         :native-scrollbar="false"
-        style="background: white"
+        style="background: #1e1e1e; border-color: #333"
       >
         <div style="padding: 16px">
           <n-input
@@ -65,7 +65,7 @@
       <!-- Services Table -->
       <n-layout-content
         :native-scrollbar="false"
-        content-style="padding: 16px; background: white"
+        content-style="padding: 16px; background: #1e1e1e"
       >
         <n-data-table
           :columns="columns"
@@ -382,7 +382,145 @@ onMounted(() => {
 <style scoped>
 .services-page {
   padding: 24px;
-  background: #f5f5f5;
+  background: #121212;
   min-height: 100vh;
+}
+
+/* Dark theme input styling */
+:deep(.n-input) {
+  background-color: #2d2d2d;
+  border-color: #404040;
+  color: #e0e0e0;
+}
+
+:deep(.n-input__input-el) {
+  color: #e0e0e0;
+}
+
+:deep(.n-input:hover) {
+  border-color: #555;
+}
+
+:deep(.n-input:focus-within) {
+  border-color: var(--n-border-focus);
+}
+
+/* Tree styling */
+:deep(.n-tree) {
+  color: #e0e0e0;
+}
+
+:deep(.n-tree-node-content) {
+  color: #e0e0e0;
+}
+
+:deep(.n-tree-node-content:hover) {
+  background-color: #2d2d2d;
+}
+
+:deep(.n-tree-node--selected .n-tree-node-content) {
+  background-color: #383838;
+}
+
+/* Data table dark theme */
+:deep(.n-data-table) {
+  background-color: #1e1e1e;
+}
+
+:deep(.n-data-table-th) {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #404040;
+}
+
+:deep(.n-data-table-td) {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border-color: #333;
+}
+
+:deep(.n-data-table-tr:hover .n-data-table-td) {
+  background-color: #2a2a2a;
+}
+
+/* Page header styling */
+:deep(.n-page-header) {
+  color: #e0e0e0;
+}
+
+:deep(.n-page-header__title) {
+  color: #e0e0e0;
+}
+
+/* Button styling for dark theme */
+:deep(.n-button--primary-type) {
+  background-color: #18a058;
+  border-color: #18a058;
+}
+
+:deep(.n-button--primary-type:hover) {
+  background-color: #1fb76b;
+  border-color: #1fb76b;
+}
+
+:deep(.n-button:not(.n-button--primary-type)) {
+  background-color: #2d2d2d;
+  border-color: #404040;
+  color: #e0e0e0;
+}
+
+:deep(.n-button:not(.n-button--primary-type):hover) {
+  background-color: #383838;
+  border-color: #555;
+}
+
+/* Dropdown styling */
+:deep(.n-dropdown-menu) {
+  background-color: #2d2d2d;
+  border-color: #404040;
+}
+
+:deep(.n-dropdown-option) {
+  color: #e0e0e0;
+}
+
+:deep(.n-dropdown-option:hover) {
+  background-color: #383838;
+}
+
+/* Empty state */
+:deep(.n-empty) {
+  color: #999;
+}
+
+:deep(.n-empty__description) {
+  color: #999;
+}
+
+/* Tags */
+:deep(.n-tag) {
+  background-color: #2d2d2d;
+  border-color: #404040;
+  color: #18a058;
+}
+
+/* Pagination */
+:deep(.n-pagination) {
+  color: #e0e0e0;
+}
+
+:deep(.n-pagination-item) {
+  background-color: #2d2d2d;
+  border-color: #404040;
+  color: #e0e0e0;
+}
+
+:deep(.n-pagination-item:hover) {
+  background-color: #383838;
+}
+
+:deep(.n-pagination-item--active) {
+  background-color: #18a058;
+  border-color: #18a058;
 }
 </style>

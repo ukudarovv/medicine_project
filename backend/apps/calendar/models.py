@@ -1,0 +1,208 @@
+from django.db import models
+from django.core.exceptions import ValidationError
+from apps.org.models import Branch, Room
+from apps.staff.models import Employee
+from apps.patients.models import Patient
+
+
+class Availability(models.Model):
+    """
+    Availability/Schedule template for employees
+    """
+    WEEKDAY_CHOICES = [
+        (0, 'Понедельник'),
+        (1, 'Вторник'),
+        (2, 'Среда'),
+        (3, 'Четверг'),
+        (4, 'Пятница'),
+        (5, 'Суббота'),
+        (6, 'Воскресенье'),
+    ]
+    
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name='availabilities'
+    )
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='availabilities'
+    )
+    weekday = models.IntegerField(choices=WEEKDAY_CHOICES)
+    time_from = models.TimeField()
+    time_to = models.TimeField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'availabilities'
+        verbose_name = 'Availability'
+        verbose_name_plural = 'Availabilities'
+        ordering = ['weekday', 'time_from']
+        unique_together = ['employee', 'weekday', 'time_from']
+    
+    def __str__(self):
+        return f"{self.employee.full_name} - {self.get_weekday_display()} {self.time_from}-{self.time_to}"
+    
+    def clean(self):
+        if self.time_from >= self.time_to:
+            raise ValidationError('Time from must be before time to')
+
+
+class Appointment(models.Model):
+    """
+    Appointment/Booking model
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Черновик'),
+        ('booked', 'Забронировано'),
+        ('confirmed', 'Подтверждено'),
+        ('in_progress', 'В процессе'),
+        ('done', 'Выполнено'),
+        ('no_show', 'Не пришёл'),
+        ('canceled', 'Отменено'),
+    ]
+    
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.CASCADE,
+        related_name='appointments'
+    )
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name='appointments'
+    )
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='appointments'
+    )
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='appointments'
+    )
+    
+    # DateTime
+    start_datetime = models.DateTimeField(db_index=True)
+    end_datetime = models.DateTimeField(db_index=True)
+    
+    # Status and flags
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='booked', db_index=True)
+    is_primary = models.BooleanField(default=False, help_text='Первичный приём')
+    is_urgent = models.BooleanField(default=False, help_text='Срочный')
+    
+    # Notes
+    note = models.TextField(blank=True, help_text='Примечание к записи')
+    cancellation_reason = models.TextField(blank=True)
+    
+    # Meta
+    created_by = models.ForeignKey(
+        'core.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_appointments'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'appointments'
+        verbose_name = 'Appointment'
+        verbose_name_plural = 'Appointments'
+        ordering = ['start_datetime']
+        indexes = [
+            models.Index(fields=['branch', 'start_datetime']),
+            models.Index(fields=['employee', 'start_datetime']),
+            models.Index(fields=['patient', 'start_datetime']),
+            models.Index(fields=['status', 'start_datetime']),
+        ]
+    
+    def __str__(self):
+        return f"{self.patient.full_name} - {self.employee.full_name} ({self.start_datetime})"
+    
+    def clean(self):
+        if self.start_datetime >= self.end_datetime:
+            raise ValidationError('Start time must be before end time')
+        
+        # Check for overlapping appointments for the same employee
+        overlapping = Appointment.objects.filter(
+            employee=self.employee,
+            start_datetime__lt=self.end_datetime,
+            end_datetime__gt=self.start_datetime
+        ).exclude(
+            id=self.id
+        ).exclude(
+            status__in=['canceled', 'no_show']
+        )
+        
+        if overlapping.exists():
+            raise ValidationError('Employee has overlapping appointments')
+        
+        # Check for overlapping appointments for the same room (if room is set)
+        if self.room:
+            overlapping_room = Appointment.objects.filter(
+                room=self.room,
+                start_datetime__lt=self.end_datetime,
+                end_datetime__gt=self.start_datetime
+            ).exclude(
+                id=self.id
+            ).exclude(
+                status__in=['canceled', 'no_show']
+            )
+            
+            if overlapping_room.exists():
+                raise ValidationError('Room is already booked for this time')
+    
+    @property
+    def duration_minutes(self):
+        """Calculate duration in minutes"""
+        delta = self.end_datetime - self.start_datetime
+        return int(delta.total_seconds() / 60)
+    
+    @property
+    def color(self):
+        """Get color based on status or employee"""
+        status_colors = {
+            'draft': '#9E9E9E',
+            'booked': '#2196F3',
+            'confirmed': '#00C2A8',
+            'in_progress': '#FF9800',
+            'done': '#4CAF50',
+            'no_show': '#F44336',
+            'canceled': '#FFCDD2',
+        }
+        return status_colors.get(self.status, self.employee.color)
+
+
+class AppointmentResource(models.Model):
+    """
+    Resources allocated to an appointment
+    """
+    appointment = models.ForeignKey(
+        Appointment,
+        on_delete=models.CASCADE,
+        related_name='allocated_resources'
+    )
+    resource = models.ForeignKey(
+        'org.Resource',
+        on_delete=models.CASCADE,
+        related_name='appointment_allocations'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'appointment_resources'
+        unique_together = ['appointment', 'resource']
+        verbose_name = 'Appointment Resource'
+        verbose_name_plural = 'Appointment Resources'
+    
+    def __str__(self):
+        return f"{self.appointment} - {self.resource.name}"
+

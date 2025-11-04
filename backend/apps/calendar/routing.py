@@ -1,7 +1,6 @@
-from django.urls import path
+from django.urls import re_path
+from . import consumers
 
-# WebSocket URL patterns for calendar
 websocket_urlpatterns = [
-    # WebSocket routes will be added here
+    re_path(r'ws/calendar/(?P<branch_id>\d+)/?$', consumers.CalendarConsumer.as_asgi()),
 ]
-

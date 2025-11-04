@@ -151,33 +151,29 @@
             <!-- Документы -->
             <n-card title="Документы" :bordered="false" style="margin-top: 16px">
               <n-space vertical size="large">
-                <n-form-item label="Полис ОМС">
-                  <n-input v-model:value="formData.oms_policy" placeholder="Номер полиса" />
+                <n-form-item label="ИИН" path="iin" help="Индивидуальный идентификационный номер">
+                  <n-input v-model:value="formData.iin" placeholder="123456789012" maxlength="12" />
                 </n-form-item>
 
-                <n-form-item label="Дата выдачи полиса ОМС">
+                <n-form-item label="Медицинская страховка">
+                  <n-input v-model:value="formData.insurance_policy" placeholder="Номер полиса" />
+                </n-form-item>
+
+                <n-form-item label="Дата выдачи страховки">
                   <n-date-picker
-                    v-model:value="formData.oms_policy_date"
+                    v-model:value="formData.insurance_date"
                     type="date"
                     placeholder="дд.мм.гггг"
                     style="width: 100%"
                   />
                 </n-form-item>
 
-                <n-form-item label="Код организации выдавшей документ">
-                  <n-input v-model:value="formData.oms_org_code" placeholder="Код организации" />
+                <n-form-item label="Страховая компания">
+                  <n-select v-model:value="formData.insurance_org" :options="insuranceOrgOptions" />
                 </n-form-item>
 
-                <n-form-item label="СНИЛС">
-                  <n-input v-model:value="formData.snils" placeholder="XXX-XXX-XXX XX" />
-                </n-form-item>
-
-                <n-form-item label="Мед. страховая организация">
-                  <n-input v-model:value="formData.insurance_org" placeholder="Название организации" />
-                </n-form-item>
-
-                <n-form-item label="Код меры социальной поддержки">
-                  <n-input v-model:value="formData.social_support_code" placeholder="Код" />
+                <n-form-item label="Социальный номер (при наличии)">
+                  <n-input v-model:value="formData.social_number" placeholder="Социальный номер" />
                 </n-form-item>
               </n-space>
 
@@ -185,27 +181,27 @@
 
               <n-space vertical size="large">
                 <n-form-item label="Гражданство">
-                  <n-input v-model:value="formData.citizenship" placeholder="Гражданство" />
+                  <n-select v-model:value="formData.citizenship" :options="citizenshipOptions" />
                 </n-form-item>
 
                 <n-form-item label="Тип документа">
-                  <n-input v-model:value="formData.doc_type" placeholder="Найти..." />
+                  <n-select v-model:value="formData.doc_type" :options="docTypeOptions" />
                 </n-form-item>
 
                 <n-grid :cols="2" :x-gap="12">
                   <n-grid-item>
                     <n-form-item label="Серия">
-                      <n-input v-model:value="formData.passport_series" placeholder="Серия" />
+                      <n-input v-model:value="formData.passport_series" placeholder="N" />
                     </n-form-item>
                   </n-grid-item>
                   <n-grid-item>
                     <n-form-item label="Номер">
-                      <n-input v-model:value="formData.passport_number" placeholder="Номер" />
+                      <n-input v-model:value="formData.passport_number" placeholder="12345678" />
                     </n-form-item>
                   </n-grid-item>
                 </n-grid>
 
-                <n-form-item label="Когда выдан">
+                <n-form-item label="Дата выдачи">
                   <n-date-picker
                     v-model:value="formData.passport_issued_date"
                     type="date"
@@ -213,22 +209,9 @@
                   />
                 </n-form-item>
 
-                <n-form-item label="Кем выдан">
-                  <n-input v-model:value="formData.passport_issued_by" placeholder="Орган выдачи" />
+                <n-form-item label="Орган выдачи">
+                  <n-input v-model:value="formData.passport_issued_by" placeholder="МВД РК" />
                 </n-form-item>
-
-                <n-grid :cols="2" :x-gap="12">
-                  <n-grid-item>
-                    <n-form-item label="Код подразделения">
-                      <n-input v-model:value="formData.dept_code" placeholder="Код" />
-                    </n-form-item>
-                  </n-grid-item>
-                  <n-grid-item>
-                    <n-form-item label="ИНН Пациента" path="iin">
-                      <n-input v-model:value="formData.iin" placeholder="ИИН/ИНН" />
-                    </n-form-item>
-                  </n-grid-item>
-                </n-grid>
               </n-space>
             </n-card>
 
@@ -259,49 +242,31 @@
             <!-- Адрес -->
             <n-card title="Адрес" :bordered="false" style="margin-top: 16px">
               <n-space vertical size="large">
-                <n-form-item label="Идентификатор типа адреса">
-                  <n-input v-model:value="formData.address_type" placeholder="Найти..." />
-                </n-form-item>
-
-                <n-form-item label="Субъект РФ">
-                  <n-input v-model:value="formData.region" placeholder="Выбрать субъект РФ" />
+                <n-form-item label="Область">
+                  <n-select v-model:value="formData.region" :options="kazakhstanRegionsOptions" placeholder="Выберите область" />
                 </n-form-item>
 
                 <n-grid :cols="2" :x-gap="12">
                   <n-grid-item>
                     <n-form-item label="Район">
-                      <n-input v-model:value="formData.district" placeholder="Найти..." />
+                      <n-input v-model:value="formData.district" placeholder="Район" />
                     </n-form-item>
                   </n-grid-item>
                   <n-grid-item>
                     <n-form-item label="Город">
-                      <n-input v-model:value="formData.city" placeholder="Найти..." />
+                      <n-select v-model:value="formData.city" :options="kazakhstanCitiesOptions" placeholder="Выберите город" />
                     </n-form-item>
                   </n-grid-item>
                 </n-grid>
 
-                <n-grid :cols="2" :x-gap="12">
-                  <n-grid-item>
-                    <n-form-item label="Населенный пункт">
-                      <n-input v-model:value="formData.locality" placeholder="Найти..." />
-                    </n-form-item>
-                  </n-grid-item>
-                  <n-grid-item>
-                    <n-form-item label="Улица">
-                      <n-input v-model:value="formData.street" placeholder="Найти..." />
-                    </n-form-item>
-                  </n-grid-item>
-                </n-grid>
+                <n-form-item label="Улица">
+                  <n-input v-model:value="formData.street" placeholder="Улица" />
+                </n-form-item>
 
-                <n-grid :cols="4" :x-gap="12">
+                <n-grid :cols="3" :x-gap="12">
                   <n-grid-item>
                     <n-form-item label="Дом">
                       <n-input v-model:value="formData.house" placeholder="Дом" />
-                    </n-form-item>
-                  </n-grid-item>
-                  <n-grid-item>
-                    <n-form-item label="Местность">
-                      <n-select v-model:value="formData.area_type" :options="areaTypeOptions" />
                     </n-form-item>
                   </n-grid-item>
                   <n-grid-item>
@@ -310,19 +275,20 @@
                     </n-form-item>
                   </n-grid-item>
                   <n-grid-item>
-                    <n-form-item label="Индекс">
+                    <n-form-item label="Почтовый индекс">
                       <n-input v-model:value="formData.postal_code" placeholder="Индекс" />
                     </n-form-item>
                   </n-grid-item>
                 </n-grid>
 
-                <n-form-item label="Геокоординаты объекта">
-                  <n-input v-model:value="formData.geocoords" placeholder="Координаты" />
+                <n-form-item label="Полный адрес" path="address">
+                  <n-input
+                    v-model:value="formData.address"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="Полный адрес"
+                  />
                 </n-form-item>
-
-                <n-button text type="primary">
-                  Изменение места регистрации - Добавить
-                </n-button>
               </n-space>
             </n-card>
 
@@ -666,6 +632,70 @@ const rhFactorOptions = [
   { label: 'Отрицательный (-)', value: 'negative' }
 ]
 
+const insuranceOrgOptions = [
+  { label: 'Не указано', value: '' },
+  { label: 'ДКМС (Дочерняя Компания Мед. Страхования)', value: 'dkms' },
+  { label: 'Евразия МС', value: 'eurasia' },
+  { label: 'Халык МС', value: 'halyk' },
+  { label: 'Интертич МС', value: 'interteach' },
+  { label: 'Казмед МС', value: 'kazmed' }
+]
+
+const citizenshipOptions = [
+  { label: 'Казахстан', value: 'KZ' },
+  { label: 'Россия', value: 'RU' },
+  { label: 'Кыргызстан', value: 'KG' },
+  { label: 'Узбекистан', value: 'UZ' },
+  { label: 'Другое', value: 'other' }
+]
+
+const docTypeOptions = [
+  { label: 'Удостоверение личности РК', value: 'id_card' },
+  { label: 'Паспорт РК', value: 'passport_kz' },
+  { label: 'Свидетельство о рождении', value: 'birth_certificate' },
+  { label: 'Загранпаспорт', value: 'foreign_passport' }
+]
+
+const kazakhstanRegionsOptions = [
+  { label: 'Выберите область', value: '' },
+  { label: 'г. Алматы', value: 'almaty_city' },
+  { label: 'г. Астана', value: 'astana' },
+  { label: 'г. Шымкент', value: 'shymkent' },
+  { label: 'Акмолинская область', value: 'akmola' },
+  { label: 'Актюбинская область', value: 'aktobe' },
+  { label: 'Алматинская область', value: 'almaty_region' },
+  { label: 'Атырауская область', value: 'atyrau' },
+  { label: 'Восточно-Казахстанская область', value: 'east_kz' },
+  { label: 'Жамбылская область', value: 'zhambyl' },
+  { label: 'Западно-Казахстанская область', value: 'west_kz' },
+  { label: 'Карагандинская область', value: 'karaganda' },
+  { label: 'Костанайская область', value: 'kostanay' },
+  { label: 'Кызылординская область', value: 'kyzylorda' },
+  { label: 'Мангистауская область', value: 'mangistau' },
+  { label: 'Павлодарская область', value: 'pavlodar' },
+  { label: 'Северо-Казахстанская область', value: 'north_kz' },
+  { label: 'Туркестанская область', value: 'turkestan' }
+]
+
+const kazakhstanCitiesOptions = [
+  { label: 'Выберите город', value: '' },
+  { label: 'Алматы', value: 'almaty' },
+  { label: 'Астана', value: 'astana' },
+  { label: 'Шымкент', value: 'shymkent' },
+  { label: 'Караганда', value: 'karaganda' },
+  { label: 'Актобе', value: 'aktobe' },
+  { label: 'Тараз', value: 'taraz' },
+  { label: 'Павлодар', value: 'pavlodar' },
+  { label: 'Усть-Каменогорск', value: 'ust_kamenogorsk' },
+  { label: 'Семей', value: 'semey' },
+  { label: 'Атырау', value: 'atyrau' },
+  { label: 'Костанай', value: 'kostanay' },
+  { label: 'Кызылорда', value: 'kyzylorda' },
+  { label: 'Уральск', value: 'uralsk' },
+  { label: 'Петропавловск', value: 'petropavlovsk' },
+  { label: 'Актау', value: 'aktau' }
+]
+
 // Form data
 const formData = ref({
   id: null,
@@ -696,15 +726,12 @@ const formData = ref({
   consent_newsletters: false,
   consent_egisz: false,
   // Документы
-  oms_policy: '',
-  oms_policy_date: null,
-  oms_org_code: '',
-  snils: '',
+  insurance_policy: '',
+  insurance_date: null,
   insurance_org: '',
-  social_support_code: '',
-  citizenship: '',
-  doc_type: '',
-  dept_code: '',
+  social_number: '',
+  citizenship: 'KZ',
+  doc_type: 'id_card',
   // Адрес детализированный
   address_type: '',
   region: '',
@@ -812,15 +839,12 @@ function resetForm() {
     telegram_id: '',
     consent_newsletters: false,
     consent_egisz: false,
-    oms_policy: '',
-    oms_policy_date: null,
-    oms_org_code: '',
-    snils: '',
+    insurance_policy: '',
+    insurance_date: null,
     insurance_org: '',
-    social_support_code: '',
-    citizenship: '',
-    doc_type: '',
-    dept_code: '',
+    social_number: '',
+    citizenship: 'KZ',
+    doc_type: 'id_card',
     address_type: '',
     region: '',
     district: '',

@@ -1,6 +1,22 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import (
+    OrganizationViewSet,
+    BranchViewSet,
+    RoomViewSet,
+    ResourceViewSet,
+    SettingsViewSet,
+    ClinicInfoView
+)
+
+router = DefaultRouter()
+router.register('organizations', OrganizationViewSet, basename='organization')
+router.register('branches', BranchViewSet, basename='branch')
+router.register('rooms', RoomViewSet, basename='room')
+router.register('resources', ResourceViewSet, basename='resource')
+router.register('settings', SettingsViewSet, basename='settings')
 
 urlpatterns = [
-    # Org endpoints will be added here
+    path('', include(router.urls)),
+    path('clinic-info', ClinicInfoView.as_view(), name='clinic_info'),
 ]
-

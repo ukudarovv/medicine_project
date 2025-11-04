@@ -53,7 +53,7 @@ class PatientViewSet(viewsets.ModelViewSet):
             )
         
         return queryset.select_related('organization').prefetch_related(
-            'representatives', 'files', 'phones', 'social_networks',
+            'representatives', 'files', 'additional_phones', 'social_networks',
             'contact_persons', 'diseases', 'diagnoses', 'dose_loads'
         )
     

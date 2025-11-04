@@ -27,24 +27,9 @@ def is_quiet_hours(dt=None):
 
 
 def apply_placeholders(body, patient, visit=None, appointment=None):
-    """Apply placeholders to message body"""
-    placeholders = {
-        '_ИМЯ_ПАЦИЕНТА_': patient.first_name,
-        '_ИМЯ_ОТЧЕСТВО_ПАЦИЕНТА_': f"{patient.first_name} {patient.middle_name}".strip(),
-        '_ДАТА_ВИЗИТА_': '',
-        '_ССЫЛКА_НА_ОНЛАЙН_ЗАПИСЬ_': getattr(settings, 'ONLINE_BOOKING_URL', 'https://clinic.example.com/booking'),
-    }
-    
-    if visit:
-        placeholders['_ДАТА_ВИЗИТА_'] = visit.date.strftime('%d.%m.%Y') if hasattr(visit, 'date') else ''
-    elif appointment:
-        placeholders['_ДАТА_ВИЗИТА_'] = appointment.start_datetime.strftime('%d.%m.%Y')
-    
-    result = body
-    for placeholder, value in placeholders.items():
-        result = result.replace(placeholder, value)
-    
-    return result
+    """Apply placeholders to message body (wrapper for utils function)"""
+    from .utils import apply_placeholders_to_message
+    return apply_placeholders_to_message(body, patient, visit, appointment)
 
 
 def check_antispam(patient, body_hash, window_hours=24):

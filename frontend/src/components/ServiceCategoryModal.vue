@@ -11,9 +11,9 @@
       </n-form-item>
 
       <n-form-item label="Родительская категория">
-        <n-tree-select
+        <n-select
           v-model:value="formData.parent"
-          :options="categoryOptions"
+          :options="flatCategoryOptions"
           placeholder="Выберите категорию"
           clearable
           filterable
@@ -108,7 +108,42 @@ const rules = {
   name: { required: true, message: 'Введите название', trigger: 'blur' }
 }
 
-// Build tree options for parent category selection
+// Flat list of categories with visual hierarchy for parent selection
+const flatCategoryOptions = computed(() => {
+  const flattenCategories = (items, level = 0, excludeId = null) => {
+    const result = []
+    
+    // Get root categories first
+    const roots = items.filter(item => !item.parent && item.id !== excludeId)
+    
+    roots.forEach(item => {
+      const prefix = '　'.repeat(level) // Use full-width space for indentation
+      result.push({
+        label: prefix + item.name,
+        value: item.id
+      })
+      
+      // Find children
+      const children = items.filter(child => child.parent === item.id && child.id !== excludeId)
+      if (children.length > 0) {
+        result.push(...flattenCategories(children, level + 1, excludeId))
+      }
+    })
+    
+    return result
+  }
+  
+  if (!props.categories || props.categories.length === 0) {
+    return [{ label: 'Нет (корневая категория)', value: null }]
+  }
+  
+  return [
+    { label: 'Нет (корневая категория)', value: null },
+    ...flattenCategories(props.categories, 0, props.category?.id)
+  ]
+})
+
+// Build tree options for parent category selection (keep for reference)
 const categoryOptions = computed(() => {
   const buildTree = (items, parentId = null) => {
     const filtered = items.filter(item => {

@@ -43,11 +43,12 @@
         </n-grid>
 
         <n-form-item label="Категория" path="category">
-          <n-tree-select
+          <n-select
             v-model:value="formData.category"
-            :options="categoryOptions"
+            :options="flatCategoryOptions"
             placeholder="Выберите категорию"
             filterable
+            clearable
           />
         </n-form-item>
 
@@ -233,6 +234,15 @@ const sideEffects = ref([])
 
 const isEdit = computed(() => !!props.service)
 
+// Debug: log categories when they change
+watch(
+  () => props.categories,
+  (newCategories) => {
+    console.log('ServiceModal: Categories received:', newCategories?.length || 0, newCategories)
+  },
+  { immediate: true }
+)
+
 const visible = computed({
   get: () => props.show,
   set: (value) => emit('update:show', value)
@@ -273,6 +283,39 @@ const rules = {
   unit: { required: true, message: 'Выберите единицу', trigger: 'change' }
 }
 
+// Flat list of categories with visual hierarchy
+const flatCategoryOptions = computed(() => {
+  const flattenCategories = (items, level = 0) => {
+    const result = []
+    
+    // Get root categories first
+    const roots = items.filter(item => !item.parent)
+    
+    roots.forEach(item => {
+      const prefix = '　'.repeat(level) // Use full-width space for indentation
+      result.push({
+        label: prefix + item.name,
+        value: item.id
+      })
+      
+      // Find children
+      const children = items.filter(child => child.parent === item.id)
+      if (children.length > 0) {
+        result.push(...flattenCategories(children, level + 1))
+      }
+    })
+    
+    return result
+  }
+  
+  if (!props.categories || props.categories.length === 0) {
+    return []
+  }
+  
+  return flattenCategories(props.categories)
+})
+
+// Keep tree format for future use
 const categoryOptions = computed(() => {
   const buildTree = (items, parentId = null) => {
     const filtered = items.filter(item => {
@@ -295,11 +338,7 @@ const categoryOptions = computed(() => {
     })
   }
   
-  const tree = buildTree(props.categories)
-  return tree.length > 0 ? tree : props.categories.map(item => ({
-    label: item.name,
-    value: item.id
-  }))
+  return buildTree(props.categories)
 })
 
 const unitOptions = [

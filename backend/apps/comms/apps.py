@@ -5,4 +5,8 @@ class CommsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.comms'
     verbose_name = 'Communications'
+    
+    def ready(self):
+        """Import signals when app is ready"""
+        import apps.comms.signals  # noqa: F401
 

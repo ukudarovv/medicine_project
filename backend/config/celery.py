@@ -14,6 +14,7 @@ app.autodiscover_tasks()
 
 # Periodic tasks
 app.conf.beat_schedule = {
+    # Legacy appointment reminders
     'send-appointment-reminders-24h': {
         'task': 'apps.comms.tasks.send_appointment_reminders',
         'schedule': crontab(hour='9', minute='0'),  # Daily at 9:00 AM
@@ -28,6 +29,23 @@ app.conf.beat_schedule = {
         'task': 'apps.comms.tasks.send_appointment_reminders',
         'schedule': crontab(minute='*/15'),  # Every 15 minutes
         'kwargs': {'hours_before': 1},
+    },
+    # Marketing reminder tasks
+    'generate-reminder-jobs': {
+        'task': 'apps.comms.tasks.generate_reminder_jobs',
+        'schedule': crontab(hour='1', minute='0'),  # Daily at 1:00 AM
+    },
+    'process-reminder-queue': {
+        'task': 'apps.comms.tasks.process_reminder_queue',
+        'schedule': crontab(minute='*/1'),  # Every minute
+    },
+    'fetch-delivery-statuses': {
+        'task': 'apps.comms.tasks.fetch_delivery_statuses',
+        'schedule': crontab(minute='*/5'),  # Every 5 minutes
+    },
+    'calculate-conversions': {
+        'task': 'apps.comms.tasks.calculate_conversions',
+        'schedule': crontab(hour='2', minute='0'),  # Daily at 2:00 AM
     },
 }
 

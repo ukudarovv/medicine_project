@@ -1,13 +1,553 @@
 <template>
-  <div class="page">
-    <h1>Маркетинг</h1>
-    <p>Рассылки и коммуникации</p>
+  <div class="marketing-page">
+    <div class="page-header">
+      <h1>Маркетинг</h1>
+      <div class="header-actions">
+        <button @click="showReminderModal = true" class="btn-primary">
+          + Напоминание
+        </button>
+        <button class="btn-secondary">+ Звонок-напоминание</button>
+        <button @click="showSendMessageModal = true" class="btn-secondary">
+          Отправить сообщение
+        </button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'reminders' }"
+        @click="activeTab = 'reminders'"
+      >
+        Напоминания
+      </button>
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'campaigns' }"
+        @click="activeTab = 'campaigns'"
+      >
+        Пользовательские рассылки
+      </button>
+    </div>
+
+    <!-- Reminders Tab -->
+    <div v-if="activeTab === 'reminders'" class="tab-content">
+      <div class="filters">
+        <div class="filter-group">
+          <label>Период отчёта:</label>
+          <input type="date" v-model="filters.period_from" />
+          <span>—</span>
+          <input type="date" v-model="filters.period_to" />
+        </div>
+        <button @click="loadReminders" class="btn-secondary">Применить</button>
+        <button @click="resetFilters" class="btn-secondary">Сбросить</button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Наименование</th>
+              <th>Включено</th>
+              <th>Тип</th>
+              <th>Пациентов пришло</th>
+              <th>Онлайн-записей</th>
+              <th>Визитов всего</th>
+              <th>Визитов на сумму</th>
+              <th>Конверсия</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading">
+              <td colspan="9" class="loading-cell">Загрузка...</td>
+            </tr>
+            <tr v-else-if="reminders.length === 0">
+              <td colspan="9" class="empty-cell">Нет данных</td>
+            </tr>
+            <tr v-else v-for="reminder in reminders" :key="reminder.id">
+              <td class="name-cell">
+                {{ reminder.name }}
+                <small v-if="reminder.link_service_name">
+                  {{ reminder.link_service_name }}
+                </small>
+              </td>
+              <td>
+                <label class="toggle-switch" @click.stop="toggleReminder(reminder)">
+                  <input type="checkbox" :checked="reminder.enabled" />
+                  <span class="slider"></span>
+                </label>
+              </td>
+              <td>
+                <span class="type-badge">{{ reminder.type_display }}</span>
+              </td>
+              <td class="number-cell">{{ reminder.sent_count }}</td>
+              <td class="number-cell">{{ reminder.online_bookings_count }}</td>
+              <td class="number-cell">{{ reminder.visit_count }}</td>
+              <td class="number-cell">{{ formatMoney(reminder.visit_amount) }}</td>
+              <td class="number-cell">
+                <span
+                  class="conversion-badge"
+                  :class="getConversionClass(reminder.conversion_rate)"
+                >
+                  {{ reminder.conversion_rate }}%
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button @click="editReminder(reminder)" class="btn-icon" title="Редактировать">
+                  ✏️
+                </button>
+                <button @click="duplicateReminder(reminder)" class="btn-icon" title="Копировать">
+                  📋
+                </button>
+                <button @click="deleteReminder(reminder)" class="btn-icon" title="Удалить">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Campaigns Tab -->
+    <div v-if="activeTab === 'campaigns'" class="tab-content">
+      <p class="coming-soon">Кампании будут реализованы в следующей итерации</p>
+    </div>
+
+    <!-- Modals -->
+    <ReminderModal
+      :visible="showReminderModal"
+      :reminder="currentReminder"
+      @close="closeReminderModal"
+      @success="handleSuccess"
+      @error="handleError"
+    />
+
+    <!-- Notifications -->
+    <div v-if="notification" class="notification" :class="notification.type">
+      {{ notification.message }}
+    </div>
   </div>
 </template>
 
+<script>
+import ReminderModal from '@/components/ReminderModal.vue'
+import { getReminders, deleteReminder, toggleReminder } from '@/api/marketing'
+
+export default {
+  name: 'MarketingPage',
+  components: {
+    ReminderModal,
+  },
+  data() {
+    return {
+      activeTab: 'reminders',
+      loading: false,
+      reminders: [],
+      showReminderModal: false,
+      showSendMessageModal: false,
+      currentReminder: null,
+      notification: null,
+      filters: {
+        period_from: '',
+        period_to: '',
+      },
+    }
+  },
+  mounted() {
+    this.loadReminders()
+  },
+  methods: {
+    async loadReminders() {
+      this.loading = true
+      try {
+        const params = {}
+        if (this.filters.period_from) params.period_from = this.filters.period_from
+        if (this.filters.period_to) params.period_to = this.filters.period_to
+
+        const response = await getReminders(params)
+        this.reminders = response.data
+      } catch (error) {
+        console.error('Error loading reminders:', error)
+        this.handleError('Ошибка загрузки напоминаний')
+      } finally {
+        this.loading = false
+      }
+    },
+    resetFilters() {
+      this.filters = {
+        period_from: '',
+        period_to: '',
+      }
+      this.loadReminders()
+    },
+    async toggleReminder(reminder) {
+      try {
+        const response = await toggleReminder(reminder.id)
+        reminder.enabled = response.data.enabled
+        this.handleSuccess('Статус изменён')
+      } catch (error) {
+        console.error('Error toggling reminder:', error)
+        this.handleError('Ошибка изменения статуса')
+      }
+    },
+    editReminder(reminder) {
+      this.currentReminder = reminder
+      this.showReminderModal = true
+    },
+    duplicateReminder(reminder) {
+      this.currentReminder = {
+        ...reminder,
+        id: null,
+        name: `${reminder.name} (копия)`,
+      }
+      this.showReminderModal = true
+    },
+    async deleteReminder(reminder) {
+      if (!confirm(`Удалить напоминание "${reminder.name}"?`)) return
+
+      try {
+        await deleteReminder(reminder.id)
+        this.handleSuccess('Напоминание удалено')
+        this.loadReminders()
+      } catch (error) {
+        console.error('Error deleting reminder:', error)
+        this.handleError('Ошибка удаления')
+      }
+    },
+    closeReminderModal() {
+      this.showReminderModal = false
+      this.currentReminder = null
+    },
+    handleSuccess(message) {
+      this.notification = { type: 'success', message }
+      setTimeout(() => (this.notification = null), 3000)
+      this.loadReminders()
+    },
+    handleError(message) {
+      this.notification = { type: 'error', message }
+      setTimeout(() => (this.notification = null), 5000)
+    },
+    formatMoney(amount) {
+      if (!amount) return '0 ₸'
+      return `${Number(amount).toLocaleString()} ₸`
+    },
+    getConversionClass(rate) {
+      if (rate >= 10) return 'high'
+      if (rate >= 5) return 'medium'
+      return 'low'
+    },
+  },
+}
+</script>
+
 <style scoped>
-.page {
+.marketing-page {
   padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #3498db;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #2980b9;
+}
+
+.btn-secondary {
+  background: #ecf0f1;
+  color: #333;
+}
+
+.btn-secondary:hover {
+  background: #bdc3c7;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #ecf0f1;
+  margin-bottom: 24px;
+}
+
+.tab {
+  padding: 12px 24px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: #7f8c8d;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: #3498db;
+}
+
+.tab.active {
+  color: #3498db;
+  border-bottom-color: #3498db;
+}
+
+.filters {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.filter-group input[type="date"] {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.table-container {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table thead {
+  background: #f8f9fa;
+  border-bottom: 2px solid #ecf0f1;
+}
+
+.data-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+}
+
+.data-table td {
+  padding: 16px;
+  border-bottom: 1px solid #ecf0f1;
+  font-size: 14px;
+}
+
+.data-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.name-cell {
+  font-weight: 500;
+}
+
+.name-cell small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+.number-cell {
+  text-align: right;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #ecf0f1;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.conversion-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.conversion-badge.high {
+  background: #d4edda;
+  color: #155724;
+}
+
+.conversion-badge.medium {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.conversion-badge.low {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-icon {
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  transition: transform 0.2s;
+}
+
+.btn-icon:hover {
+  transform: scale(1.2);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: '';
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #27ae60;
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+.loading-cell,
+.empty-cell {
+  text-align: center;
+  padding: 48px;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.coming-soon {
+  text-align: center;
+  padding: 64px;
+  color: #7f8c8d;
+  font-size: 16px;
+}
+
+.notification {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+}
+
+.notification.success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.notification.error {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 </style>
-

@@ -133,8 +133,8 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8000/api/v1
-      - VITE_WS_URL=ws://localhost:8001
+      - VITE_API_URL=http://${HOST_IP:-localhost}:8000/api/v1
+      - VITE_WS_URL=ws://${HOST_IP:-localhost}:8001
     depends_on:
       - backend
 

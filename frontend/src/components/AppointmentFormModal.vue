@@ -7,8 +7,9 @@
     :segmented="{ content: 'soft' }"
   >
     <n-scrollbar style="max-height: 80vh">
-      <!-- Header info -->
-      <div class="appointment-header">
+      <n-form ref="formRef" :model="formData" :rules="formRules">
+        <!-- Header info -->
+        <div class="appointment-header">
         <div class="appointment-info">
           <span class="appointment-datetime">
             {{ formattedDateTime }}
@@ -42,13 +43,48 @@
         </n-button>
       </n-space>
 
+      <!-- Basic appointment info -->
+      <n-card :bordered="false" size="small" style="margin-bottom: 16px">
+        <n-grid :cols="3" :x-gap="12">
+          <n-grid-item>
+            <n-form-item label="Сотрудник *" path="employee">
+              <n-select
+                v-model:value="formData.employee"
+                :options="employeeOptions"
+                placeholder="Выберите сотрудника"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="Начало *" path="start_datetime">
+              <n-date-picker
+                v-model:value="formData.start_datetime"
+                type="datetime"
+                placeholder="Выберите время"
+                style="width: 100%"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item>
+            <n-form-item label="Окончание *" path="end_datetime">
+              <n-date-picker
+                v-model:value="formData.end_datetime"
+                type="datetime"
+                placeholder="Выберите время"
+                style="width: 100%"
+              />
+            </n-form-item>
+          </n-grid-item>
+        </n-grid>
+      </n-card>
+
       <n-grid :cols="3" :x-gap="16">
         <!-- Left column - Patient info -->
         <n-grid-item :span="2">
           <n-card title="Информация о пациенте" :bordered="false" size="small">
             <n-space vertical size="large">
               <!-- Patient selection or creation -->
-              <n-form-item label="Пациент">
+              <n-form-item label="Пациент *" path="patient">
                 <n-select
                   v-model:value="formData.patient"
                   :options="patientOptions"
@@ -74,12 +110,12 @@
                 
                 <n-grid :cols="3" :x-gap="12">
                   <n-grid-item>
-                    <n-form-item label="Фамилия">
+                    <n-form-item label="Фамилия *">
                       <n-input v-model:value="patientData.last_name" placeholder="Фамилия" />
                     </n-form-item>
                   </n-grid-item>
                   <n-grid-item>
-                    <n-form-item label="Имя">
+                    <n-form-item label="Имя *">
                       <n-input v-model:value="patientData.first_name" placeholder="Имя" />
                     </n-form-item>
                   </n-grid-item>
@@ -92,7 +128,7 @@
 
                 <n-grid :cols="2" :x-gap="12">
                   <n-grid-item>
-                    <n-form-item label="Телефон">
+                    <n-form-item label="Телефон *">
                       <n-input v-model:value="patientData.phone" placeholder="+7 (XXX) XXX-XX-XX" />
                     </n-form-item>
                   </n-grid-item>
@@ -240,6 +276,7 @@
           </n-card>
         </n-grid-item>
       </n-grid>
+      </n-form>
     </n-scrollbar>
 
     <template #footer>
@@ -322,6 +359,7 @@ const emit = defineEmits(['update:show', 'saved', 'search-patient'])
 
 const message = useMessage()
 const authStore = useAuthStore()
+const formRef = ref(null)
 const saving = ref(false)
 const loadingPatients = ref(false)
 const showCreatePatient = ref(false)
@@ -364,6 +402,39 @@ const patientData = ref({
 const selectedServices = ref([])
 const resources = ref([])
 
+// Validation rules
+const formRules = {
+  employee: {
+    required: true,
+    type: 'number',
+    message: 'Выберите сотрудника',
+    trigger: ['blur', 'change']
+  },
+  patient: {
+    required: true,
+    type: 'number',
+    message: 'Выберите или создайте пациента',
+    trigger: ['blur', 'change']
+  },
+  start_datetime: {
+    required: true,
+    type: 'number',
+    message: 'Выберите время начала',
+    trigger: ['blur', 'change']
+  },
+  end_datetime: {
+    required: true,
+    type: 'number',
+    message: 'Выберите время окончания',
+    trigger: ['blur', 'change']
+  },
+  status: {
+    required: true,
+    message: 'Выберите статус',
+    trigger: 'change'
+  }
+}
+
 // Computed
 const formattedDateTime = computed(() => {
   if (!formData.value.start_datetime) return 'Не выбрано'
@@ -386,12 +457,24 @@ const authorName = computed(() => {
   return authStore.user ? `${authStore.user.last_name} ${authStore.user.first_name}` : ''
 })
 
+const employeeOptions = computed(() =>
+  props.employees.map((e) => ({
+    label: `${e.last_name} ${e.first_name} - ${e.position}`,
+    value: e.id
+  }))
+)
+
 const patientOptions = computed(() =>
   props.patients.map((p) => ({
-    label: `${p.last_name} ${p.first_name} - ${p.phone}`,
+    label: `${p.full_name || `${p.last_name} ${p.first_name}`} - ${p.phone}`,
     value: p.id
   }))
 )
+
+const roomOptions = computed(() => {
+  // TODO: Get rooms from props or API
+  return []
+})
 
 const patientBalance = computed(() => {
   if (!formData.value.patient) return 0
@@ -586,7 +669,19 @@ async function createQuickPatient() {
     formData.value.patient = response.data.id
     showCreatePatient.value = false
     
+    // Add to patients list for display
+    const newPatient = {
+      id: response.data.id,
+      last_name: newPatientData.last_name,
+      first_name: newPatientData.first_name,
+      middle_name: newPatientData.middle_name,
+      phone: newPatientData.phone,
+      full_name: `${newPatientData.last_name} ${newPatientData.first_name} ${newPatientData.middle_name || ''}`.trim()
+    }
+    
     message.success('Пациент создан и выбран')
+    
+    console.log('Patient created:', newPatient)
     
     // Clear patient form
     patientData.value = {
@@ -672,6 +767,25 @@ function resetForm() {
 
 async function handleSave(closeAfter = false) {
   try {
+    // Validate form first
+    await formRef.value?.validate()
+    
+    // Check if patient is selected or needs to be created
+    if (!formData.value.patient && showCreatePatient.value) {
+      message.error('Сначала создайте пациента, нажав кнопку "✓ Создать пациента"')
+      return
+    }
+    
+    if (!formData.value.patient) {
+      message.error('Выберите пациента или создайте нового')
+      return
+    }
+    
+    if (!formData.value.employee) {
+      message.error('Выберите сотрудника')
+      return
+    }
+    
     saving.value = true
 
     const data = {
@@ -687,6 +801,8 @@ async function handleSave(closeAfter = false) {
       source: formData.value.source
     }
 
+    console.log('Saving appointment:', data)
+
     emit('saved', data, selectedServices.value)
     message.success(isEdit.value ? 'Визит обновлен' : 'Визит создан')
 
@@ -695,7 +811,9 @@ async function handleSave(closeAfter = false) {
     }
   } catch (error) {
     console.error('Error saving appointment:', error)
-    message.error('Ошибка сохранения визита')
+    if (error.message && !error.message.includes('validate')) {
+      message.error('Ошибка сохранения визита')
+    }
   } finally {
     saving.value = false
   }
@@ -705,6 +823,7 @@ async function handleSave(closeAfter = false) {
 watch(
   () => [props.prefilledEmployee, props.prefilledDateTime],
   ([employee, datetime]) => {
+    console.log('Prefilled data received:', { employee, datetime })
     if (employee) {
       formData.value.employee = employee
     }

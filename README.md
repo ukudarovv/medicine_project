@@ -248,6 +248,135 @@ cd frontend
 npx playwright test
 ```
 
+## Доступ по локальной сети
+
+### Автоматическая настройка (Windows)
+
+Запустите PowerShell от имени администратора и выполните:
+
+```powershell
+.\setup_network_access.ps1
+```
+
+Скрипт автоматически:
+- Определит IP адрес вашего компьютера
+- Настроит переменные окружения
+- Добавит правила файрвола
+- Предложит перезапустить Docker
+
+### Ручная настройка
+
+1. **Узнайте IP адрес вашего компьютера:**
+   ```powershell
+   ipconfig
+   ```
+   Найдите IPv4 адрес (например: `192.168.1.100`)
+
+2. **Создайте .env файл** (если еще не создан):
+   ```bash
+   copy env.example .env
+   ```
+
+3. **Добавьте/измените в .env:**
+   ```env
+   HOST_IP=192.168.1.100  # Ваш реальный IP
+   ```
+
+4. **Откройте порты в Windows Firewall:**
+   
+   Выполните в PowerShell от имени администратора:
+   ```powershell
+   New-NetFirewallRule -DisplayName "Medicine ERP Frontend" -Direction Inbound -LocalPort 5173 -Protocol TCP -Action Allow
+   New-NetFirewallRule -DisplayName "Medicine ERP Backend" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+   New-NetFirewallRule -DisplayName "Medicine ERP WebSocket" -Direction Inbound -LocalPort 8001 -Protocol TCP -Action Allow
+   ```
+
+5. **Перезапустите Docker:**
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   ```
+
+6. **Доступ с других компьютеров:**
+   
+   Откройте браузер на другом компьютере и перейдите:
+   ```
+   http://192.168.1.100:5173
+   ```
+   (замените на ваш реальный IP)
+
+### Требования для сетевого доступа
+
+- Компьютеры должны быть в одной локальной сети
+- Порты 5173, 8000, 8001 должны быть открыты в файрволе
+- Docker Desktop должен быть запущен
+- Все сервисы должны быть в статусе "Up"
+
+Подробная инструкция: [NETWORK_ACCESS.md](NETWORK_ACCESS.md)
+
+## Модуль «Маркетинг»
+
+Модуль маркетинга для управления коммуникациями с пациентами (SMS, WhatsApp, Telegram).
+
+### Основные функции
+
+**Напоминания (Triggers)**
+- 10 типов автоматических триггеров (пропущенный звонок, подтверждение записи, после визита, ДР и др.)
+- Персонализация плейсхолдерами: `_ИМЯ_ПАЦИЕНТА_`, `_ДАТА_ВИЗИТА_`, `_ССЫЛКА_НА_ОНЛАЙН_ЗАПИСЬ_`
+- Автоматический учёт quiet-hours (22:00-08:00) и opt-in/out
+
+**Кампании**
+- Массовые рассылки с фильтрацией аудитории (теги, услуги, даты)
+- Планирование и батчинг
+- Экспорт результатов в Excel
+
+**Метрики и конверсия**
+- Автоматический расчёт: доставлено → визит → выручка
+- Конверсионное окно: 14 дней
+
+### API Endpoints
+
+```
+GET/POST  /api/comms/marketing/reminders/      # CRUD напоминаний
+POST      /api/comms/marketing/reminders/{id}/test/    # Тест
+PATCH     /api/comms/marketing/reminders/{id}/toggle/  # Вкл/выкл
+
+GET/POST  /api/comms/marketing/campaigns/      # CRUD кампаний
+POST      /api/comms/marketing/campaigns/{id}/prepare/   # Подготовка
+POST      /api/comms/marketing/campaigns/{id}/schedule/  # Запуск
+
+GET       /api/comms/marketing/contact-log/    # Журнал контактов
+GET       /api/comms/marketing/sms-balance/    # Баланс SMS
+```
+
+### Celery Tasks (автоматические)
+
+- `generate_reminder_jobs` - ежедневно 01:00
+- `process_reminder_queue` - каждую минуту
+- `fetch_delivery_statuses` - каждые 5 минут
+- `calculate_conversions` - ежедневно 02:00
+
+### Настройка в .env
+
+```bash
+SMS_PROVIDER=mock
+SMS_RATE_LIMIT_PER_MIN=30
+SMS_PRICE_PER_SMS=15.0
+ONLINE_BOOKING_URL=https://your-clinic.com/booking
+QUIET_HOURS_START=22
+QUIET_HOURS_END=8
+ANTISPAM_WINDOW_HOURS=24
+CONVERSION_WINDOW_DAYS=14
+```
+
+### Защита и правила
+
+- ✅ Opt-in/out (поле `is_marketing_opt_in` в Patient)
+- ✅ Quiet hours (не отправлять ночью)
+- ✅ Антиспам (одно сообщение не чаще 1 раза в 24ч)
+- ✅ Rate limiting (соблюдение лимитов провайдера)
+- ✅ Audit log (логирование всех действий)
+
 ## Деплой
 
 См. [docs/deployment.md](docs/deployment.md) для инструкций по деплою в production.

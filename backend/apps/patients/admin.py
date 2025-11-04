@@ -85,8 +85,8 @@ class PatientFileAdmin(admin.ModelAdmin):
 
 @admin.register(PatientPhone)
 class PatientPhoneAdmin(admin.ModelAdmin):
-    list_display = ['patient', 'phone', 'phone_type', 'is_primary']
-    list_filter = ['phone_type', 'is_primary']
+    list_display = ['patient', 'phone', 'type', 'is_primary']
+    list_filter = ['type', 'is_primary']
     raw_id_fields = ['patient']
 
 
@@ -99,7 +99,7 @@ class PatientSocialNetworkAdmin(admin.ModelAdmin):
 
 @admin.register(PatientContactPerson)
 class PatientContactPersonAdmin(admin.ModelAdmin):
-    list_display = ['patient', 'name', 'relation', 'phone']
+    list_display = ['patient', 'first_name', 'last_name', 'relation', 'phone']
     raw_id_fields = ['patient']
 
 
@@ -112,8 +112,8 @@ class PatientDiseaseAdmin(admin.ModelAdmin):
 
 @admin.register(PatientDiagnosis)
 class PatientDiagnosisAdmin(admin.ModelAdmin):
-    list_display = ['patient', 'diagnosis', 'icd_code', 'date', 'is_primary', 'doctor']
-    list_filter = ['date', 'is_primary']
+    list_display = ['patient', 'diagnosis', 'icd_code', 'date', 'type', 'doctor']
+    list_filter = ['date', 'type']
     raw_id_fields = ['patient', 'icd_code', 'doctor']
 
 

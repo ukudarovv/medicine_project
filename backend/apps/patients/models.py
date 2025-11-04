@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 from apps.org.models import Organization
 
 
@@ -38,6 +39,18 @@ class Patient(models.Model):
         default=dict,
         blank=True,
         help_text='Согласия (обработка данных, фото и т.д.)'
+    )
+    
+    # Marketing
+    tags = ArrayField(
+        models.CharField(max_length=100),
+        default=list,
+        blank=True,
+        help_text='Теги для сегментации (ортодонтия, имплантация и т.д.)'
+    )
+    is_marketing_opt_in = models.BooleanField(
+        default=False,
+        help_text='Согласие на маркетинговые рассылки'
     )
     
     # Financial
@@ -350,106 +363,6 @@ class PatientFile(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.patient.full_name}"
-
-
-class PatientPhone(models.Model):
-    """
-    Multiple phones for patient
-    """
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='phones')
-    phone = models.CharField(max_length=20)
-    phone_type = models.CharField(max_length=20, choices=[
-        ('mobile', 'Мобильный'),
-        ('home', 'Домашний'),
-        ('work', 'Рабочий'),
-    ], default='mobile')
-    is_primary = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'patient_phones'
-    
-    def __str__(self):
-        return f"{self.phone} ({self.get_phone_type_display()})"
-
-
-class PatientSocialNetwork(models.Model):
-    """
-    Patient social networks
-    """
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='social_networks')
-    network = models.CharField(max_length=50, choices=[
-        ('instagram', 'Instagram'),
-        ('facebook', 'Facebook'),
-        ('vk', 'VKontakte'),
-        ('whatsapp', 'WhatsApp'),
-        ('telegram', 'Telegram'),
-    ])
-    username = models.CharField(max_length=200)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'patient_social_networks'
-    
-    def __str__(self):
-        return f"{self.network}: {self.username}"
-
-
-class PatientContactPerson(models.Model):
-    """
-    Emergency contact person
-    """
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='contact_persons')
-    name = models.CharField(max_length=200)
-    relation = models.CharField(max_length=100)
-    phone = models.CharField(max_length=20)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'patient_contact_persons'
-    
-    def __str__(self):
-        return f"{self.name} ({self.relation})"
-
-
-class PatientDisease(models.Model):
-    """
-    Dispensary observation diseases
-    """
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='diseases')
-    start_date = models.DateField()
-    end_date = models.DateField(null=True, blank=True)
-    diagnosis = models.TextField()
-    icd_code = models.ForeignKey('services.ICDCode', on_delete=models.SET_NULL, null=True, blank=True)
-    doctor = models.ForeignKey('staff.Employee', on_delete=models.SET_NULL, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'patient_diseases'
-        ordering = ['-start_date']
-    
-    def __str__(self):
-        return f"{self.diagnosis} - {self.patient.full_name}"
-
-
-class PatientDiagnosis(models.Model):
-    """
-    Final/clarified diagnoses
-    """
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='diagnoses')
-    date = models.DateField()
-    diagnosis = models.TextField()
-    icd_code = models.ForeignKey('services.ICDCode', on_delete=models.SET_NULL, null=True, blank=True)
-    is_primary = models.BooleanField(default=True, help_text='Первичный - True, Повторный - False')
-    doctor = models.ForeignKey('staff.Employee', on_delete=models.SET_NULL, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'patient_diagnoses'
-        ordering = ['-date']
-    
-    def __str__(self):
-        return f"{self.diagnosis} - {self.date}"
 
 
 class PatientDoseLoad(models.Model):

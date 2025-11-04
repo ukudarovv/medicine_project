@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 
 const apiClient = axios.create({
-  baseURL: '/api',  // Using Vite proxy (fixed for Django URLs)
+  baseURL: '/api/v1',  // Using Vite proxy (fixed for Django URLs)
   headers: {
     'Content-Type': 'application/json'
   }

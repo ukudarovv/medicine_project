@@ -17,16 +17,22 @@ class CalendarConsumer(AsyncWebsocketConsumer):
         self.branch_id = self.scope['url_route']['kwargs'].get('branch_id')
         self.user = self.scope['user']
         
-        # Check authentication
-        if isinstance(self.user, AnonymousUser):
+        # In development mode, allow connections without authentication
+        # TODO: Enable proper authentication in production
+        import os
+        is_dev = os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('development')
+        
+        # Check authentication (skip in development)
+        if not is_dev and isinstance(self.user, AnonymousUser):
             await self.close()
             return
         
-        # Check branch access
-        has_access = await self.check_branch_access()
-        if not has_access:
-            await self.close()
-            return
+        # Check branch access (skip in development)
+        if not is_dev:
+            has_access = await self.check_branch_access()
+            if not has_access:
+                await self.close()
+                return
         
         # Join branch-specific group
         self.group_name = f'calendar_branch_{self.branch_id}'

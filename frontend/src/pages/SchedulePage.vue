@@ -25,6 +25,20 @@
         </n-button-group>
       </div>
       <div class="header-actions">
+        <n-button-group>
+          <n-button @click="scrollToTop" secondary>
+            <template #icon>
+              <n-icon><svg viewBox="0 0 24 24"><path fill="currentColor" d="M7,15L12,10L17,15H7Z"></path></svg></n-icon>
+            </template>
+            Начало дня
+          </n-button>
+          <n-button @click="scrollToCurrentTime" secondary>
+            <template #icon>
+              <n-icon><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"></path></svg></n-icon>
+            </template>
+            Сейчас
+          </n-button>
+        </n-button-group>
         <n-select
           v-model:value="statusFilter"
           multiple
@@ -107,11 +121,20 @@
             v-for="appointment in getEmployeeAppointments(employee.id)"
             :key="appointment.id"
             class="appointment-block"
-            :class="`status-${appointment.status}`"
+            :class="[
+              `status-${appointment.status}`,
+              { 'has-visit': appointment.has_visit }
+            ]"
             :style="getAppointmentStyle(appointment)"
             @click.stop="openAppointment(appointment)"
             @contextmenu.prevent="showAppointmentContextMenu($event, appointment)"
           >
+            <!-- Visit indicator -->
+            <div v-if="appointment.has_visit" class="visit-indicator" :class="`visit-${appointment.visit_status}`">
+              <n-icon size="16">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"></path></svg>
+              </n-icon>
+            </div>
             <div class="appointment-patient">
               {{ appointment.patient_name }}
             </div>
@@ -603,7 +626,8 @@ function updateCurrentTime() {
 let ws = null
 
 function connectWebSocket() {
-  const branch_id = 1 // TODO: get from auth store
+  // TODO: get from auth store or selected branch
+  const branch_id = 3 // Default to first clinic branch (Филиал на Абая)
   ws = new WebSocket(`ws://localhost:8001/ws/calendar/${branch_id}`)
   
   ws.onopen = () => {
@@ -667,6 +691,27 @@ function handlePatientCreated(newPatient) {
   message.success(`Пациент ${newPatient.full_name} добавлен`)
 }
 
+function scrollToTop() {
+  if (gridRef.value) {
+    gridRef.value.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+function scrollToCurrentTime() {
+  const now = new Date()
+  const currentHour = now.getHours()
+  
+  if (currentHour >= workHoursStart && currentHour <= workHoursEnd) {
+    const scrollToHour = Math.max(workHoursStart, currentHour - 1)
+    const slotsBeforeTarget = (scrollToHour - workHoursStart) * 2
+    const scrollPosition = slotsBeforeTarget * slotHeight
+    
+    if (gridRef.value) {
+      gridRef.value.scrollTo({ top: scrollPosition, behavior: 'smooth' })
+    }
+  }
+}
+
 onMounted(async () => {
   await Promise.all([
     loadEmployees(),
@@ -680,6 +725,28 @@ onMounted(async () => {
   timeUpdateInterval = setInterval(updateCurrentTime, 60000) // Update every minute
   
   connectWebSocket()
+  
+  // Scroll to current time or start of day
+  setTimeout(() => {
+    const now = new Date()
+    const currentHour = now.getHours()
+    
+    // If within working hours, scroll to 1 hour before current time
+    if (currentHour >= workHoursStart && currentHour <= workHoursEnd) {
+      const scrollToHour = Math.max(workHoursStart, currentHour - 1)
+      const slotsBeforeTarget = (scrollToHour - workHoursStart) * 2 // 2 slots per hour
+      const scrollPosition = slotsBeforeTarget * slotHeight
+      
+      if (gridRef.value) {
+        gridRef.value.scrollTop = scrollPosition
+      }
+    } else {
+      // Outside working hours, scroll to top
+      if (gridRef.value) {
+        gridRef.value.scrollTop = 0
+      }
+    }
+  }, 100) // Small delay to ensure DOM is ready
 })
 
 onUnmounted(() => {
@@ -881,15 +948,54 @@ $primary-color: #18a058;
   left: 4px;
   right: 4px;
   border-radius: $radius-md;
+  border: 2px solid transparent;
   padding: $spacing-sm;
   cursor: pointer;
   transition: all $transition-fast;
   overflow: hidden;
   box-shadow: $shadow-sm;
   
+  &.has-visit {
+    border-left-width: 4px;
+    border-left-style: solid;
+    border-left-color: #4CAF50;
+  }
+  
   &:hover {
     box-shadow: $shadow-md;
     transform: translateY(-2px);
+  }
+}
+
+// Visit indicator badge
+.visit-indicator {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  
+  &.visit-completed {
+    background: #4CAF50;
+  }
+  
+  &.visit-in_progress {
+    background: #FF9800;
+  }
+  
+  &.visit-draft {
+    background: #2196F3;
+  }
+  
+  &.visit-canceled {
+    background: #f44336;
   }
 }
 

@@ -42,8 +42,7 @@ class Patient(models.Model):
     )
     
     # Marketing
-    tags = ArrayField(
-        models.CharField(max_length=100),
+    tags = models.JSONField(
         default=list,
         blank=True,
         help_text='Теги для сегментации (ортодонтия, имплантация и т.д.)'

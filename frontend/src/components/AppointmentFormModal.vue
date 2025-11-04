@@ -790,7 +790,7 @@ async function handleSave(closeAfter = false) {
     saving.value = true
 
     const data = {
-      branch: 1,
+      branch: 3, // TODO: get from selected branch or auth store
       employee: formData.value.employee,
       patient: formData.value.patient,
       start_datetime: new Date(formData.value.start_datetime).toISOString(),

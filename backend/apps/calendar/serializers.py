@@ -48,6 +48,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
     color = serializers.CharField(read_only=True)
     allocated_resources = AppointmentResourceSerializer(many=True, read_only=True)
     
+    # Visit information
+    has_visit = serializers.SerializerMethodField()
+    visit_id = serializers.SerializerMethodField()
+    visit_status = serializers.SerializerMethodField()
+    
     class Meta:
         model = Appointment
         fields = [
@@ -57,9 +62,22 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'status', 'status_display', 'is_primary', 'is_urgent',
             'note', 'cancellation_reason', 'color',
             'allocated_resources',
+            'has_visit', 'visit_id', 'visit_status',
             'created_by', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+    
+    def get_has_visit(self, obj):
+        """Check if appointment has associated visit"""
+        return hasattr(obj, 'visit')
+    
+    def get_visit_id(self, obj):
+        """Get visit ID if exists"""
+        return obj.visit.id if hasattr(obj, 'visit') else None
+    
+    def get_visit_status(self, obj):
+        """Get visit status if exists"""
+        return obj.visit.status if hasattr(obj, 'visit') else None
     
     def validate(self, attrs):
         """
@@ -120,13 +138,31 @@ class AppointmentListSerializer(serializers.ModelSerializer):
     patient_phone = serializers.CharField(source='patient.phone', read_only=True)
     color = serializers.CharField(read_only=True)
     
+    # Visit information
+    has_visit = serializers.SerializerMethodField()
+    visit_id = serializers.SerializerMethodField()
+    visit_status = serializers.SerializerMethodField()
+    
     class Meta:
         model = Appointment
         fields = [
             'id', 'employee', 'employee_name', 'patient', 'patient_name', 'patient_phone',
             'room', 'start_datetime', 'end_datetime',
-            'status', 'is_primary', 'color'
+            'status', 'is_primary', 'color',
+            'has_visit', 'visit_id', 'visit_status'
         ]
+    
+    def get_has_visit(self, obj):
+        """Check if appointment has associated visit"""
+        return hasattr(obj, 'visit')
+    
+    def get_visit_id(self, obj):
+        """Get visit ID if exists"""
+        return obj.visit.id if hasattr(obj, 'visit') else None
+    
+    def get_visit_status(self, obj):
+        """Get visit status if exists"""
+        return obj.visit.status if hasattr(obj, 'visit') else None
 
 
 class AppointmentMoveSerializer(serializers.Serializer):

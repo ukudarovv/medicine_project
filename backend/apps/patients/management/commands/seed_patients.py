@@ -27,8 +27,9 @@ class Command(BaseCommand):
             {'first_name': 'Марат', 'last_name': 'Қайратов', 'sex': 'M', 'birth_year': 1994},
         ]
         
+        created_count = 0
         for idx, data in enumerate(patients_data, 1):
-            Patient.objects.get_or_create(
+            patient, created = Patient.objects.get_or_create(
                 organization=org,
                 phone=f'+77011{idx:06d}',
                 defaults={
@@ -37,8 +38,13 @@ class Command(BaseCommand):
                     'birth_date': date(data['birth_year'], random.randint(1, 12), random.randint(1, 28)),
                     'sex': data['sex'],
                     'email': f'{data["first_name"].lower()}@example.com',
+                    'tags': ['новый_пациент'],
+                    'is_marketing_opt_in': random.choice([True, False]),
                 }
             )
+            if created:
+                created_count += 1
+                self.stdout.write(self.style.SUCCESS(f'✓ Created patient: {patient.first_name} {patient.last_name}'))
         
-        self.stdout.write(self.style.SUCCESS('✓ Patients seeded successfully!'))
+        self.stdout.write(self.style.SUCCESS(f'✓ Patients seeded successfully! Created {created_count} new patients, total: {Patient.objects.count()}'))
 

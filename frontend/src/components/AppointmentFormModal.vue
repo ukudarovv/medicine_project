@@ -355,7 +355,7 @@ const props = defineProps({
   prefilledDateTime: Number
 })
 
-const emit = defineEmits(['update:show', 'saved', 'search-patient'])
+const emit = defineEmits(['update:show', 'saved', 'search-patient', 'patient-created'])
 
 const message = useMessage()
 const authStore = useAuthStore()
@@ -678,6 +678,9 @@ async function createQuickPatient() {
       phone: newPatientData.phone,
       full_name: `${newPatientData.last_name} ${newPatientData.first_name} ${newPatientData.middle_name || ''}`.trim()
     }
+    
+    // Notify parent component about the new patient
+    emit('patient-created', newPatient)
     
     message.success('Пациент создан и выбран')
     

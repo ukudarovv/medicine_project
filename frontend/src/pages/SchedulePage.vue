@@ -137,6 +137,7 @@
       :prefilled-date-time="prefilledDateTime"
       @saved="handleAppointmentSaved"
       @search-patient="searchPatients"
+      @patient-created="handlePatientCreated"
     />
 
     <!-- Break modal -->
@@ -526,7 +527,11 @@ async function loadAppointments() {
 }
 
 async function searchPatients(query) {
-  if (!query) return
+  if (!query || query.length < 2) {
+    // If search is empty or too short, reload initial patients list
+    await loadPatients()
+    return
+  }
   
   loadingPatients.value = true
   try {
@@ -645,12 +650,30 @@ async function loadServices() {
   }
 }
 
+async function loadPatients() {
+  try {
+    const response = await apiClient.get('/patients/patients', {
+      params: { page_size: 100 }
+    })
+    patients.value = response.data.results || response.data
+  } catch (error) {
+    console.error('Error loading patients:', error)
+  }
+}
+
+function handlePatientCreated(newPatient) {
+  // Add the newly created patient to the patients list
+  patients.value.unshift(newPatient)
+  message.success(`Пациент ${newPatient.full_name} добавлен`)
+}
+
 onMounted(async () => {
   await Promise.all([
     loadEmployees(),
     loadAppointments(),
     loadRooms(),
-    loadServices()
+    loadServices(),
+    loadPatients()
   ])
   
   updateCurrentTime()

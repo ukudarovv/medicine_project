@@ -433,6 +433,71 @@ class ContactLog(models.Model):
         return hashlib.sha256(body.encode('utf-8')).hexdigest()
 
 
+class PatientContact(models.Model):
+    """
+    Patient contact history (calls, visits, SMS) - Sprint 2
+    Detailed contact tracking for patient management
+    """
+    CONTACT_TYPE_CHOICES = [
+        ('call', 'Звонок'),
+        ('sms', 'SMS'),
+        ('whatsapp', 'WhatsApp'),
+        ('visit', 'Визит в клинику'),
+        ('email', 'Email'),
+    ]
+    
+    DIRECTION_CHOICES = [
+        ('inbound', 'Входящий'),
+        ('outbound', 'Исходящий'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('reached', 'Дозвонились'),
+        ('no_answer', 'Не ответил'),
+        ('callback_requested', 'Перезвонить'),
+        ('message_left', 'Оставлено сообщение'),
+        ('completed', 'Выполнено'),
+    ]
+    
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='contact_interactions'
+    )
+    contact_type = models.CharField(max_length=20, choices=CONTACT_TYPE_CHOICES)
+    direction = models.CharField(max_length=20, choices=DIRECTION_CHOICES)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES)
+    
+    note = models.TextField(blank=True, help_text='Заметка о контакте')
+    next_contact_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Дата следующего контакта'
+    )
+    
+    created_by = models.ForeignKey(
+        'core.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='patient_contacts'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_contacts'
+        verbose_name = 'Patient Contact'
+        verbose_name_plural = 'Patient Contacts'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['patient', 'created_at']),
+            models.Index(fields=['contact_type', 'status']),
+            models.Index(fields=['next_contact_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.patient.full_name} - {self.get_contact_type_display()} ({self.created_at.date()})"
+
+
 class AuditLog(models.Model):
     """Audit log for marketing actions"""
     ACTION_CHOICES = [

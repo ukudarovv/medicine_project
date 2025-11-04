@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Согласие на медицинское вмешательство</title>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 14pt; font-weight: bold; }
+        .content { text-align: justify; }
+        .content p { margin: 10px 0; }
+        .field { display: inline-block; border-bottom: 1px solid #000; min-width: 200px; }
+        .signature-block { margin-top: 40px; display: flex; justify-content: space-between; }
+        .signature-item { text-align: center; }
+        .signature-line { border-bottom: 1px solid #000; width: 200px; margin: 0 auto 5px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ИНФОРМИРОВАННОЕ ДОБРОВОЛЬНОЕ СОГЛАСИЕ<br>НА МЕДИЦИНСКОЕ ВМЕШАТЕЛЬСТВО</h1>
+    </div>
+
+    <div class="content">
+        <p>Я, <span class="field">{{ patient.full_name }}</span>,</p>
+        <p>ИИН: <span class="field">{{ patient.iin }}</span>,</p>
+        <p>дата рождения: <span class="field">{{ patient.birth_date }}</span>,</p>
+        <p>проживающий(ая) по адресу: <span class="field">{{ patient.address }}</span>,</p>
+
+        <p style="margin-top: 20px;">
+            <strong>НАСТОЯЩИМ ДАЮ СОГЛАСИЕ</strong>
+        </p>
+
+        <p>
+            на проведение мне (моему подопечному) медицинских вмешательств, включающих:
+        </p>
+
+        <ol>
+            <li>Профилактические, диагностические, лечебные медицинские вмешательства;</li>
+            <li>Обследование и лечение в соответствии с медицинскими показаниями;</li>
+            <li>Применение лекарственных препаратов и медицинских изделий;</li>
+            <li>Проведение инъекций, перевязок и других медицинских манипуляций;</li>
+            <li>Рентгенологические исследования;</li>
+            <li>Лабораторные исследования;</li>
+            <li>Физиотерапевтические процедуры;</li>
+            <li>Иные виды медицинских вмешательств, необходимых для диагностики и лечения.</li>
+        </ol>
+
+        <p>
+            Я проинформирован(а) медицинским работником 
+            <span class="field">{{ organization.name }}</span> о целях, методах оказания 
+            медицинской помощи, связанных с ними рисках, возможных вариантах медицинского 
+            вмешательства, о его последствиях, а также о предполагаемых результатах оказания 
+            медицинской помощи.
+        </p>
+
+        <p>
+            Мне разъяснено и понятно, что я имею право отказаться от одного или нескольких 
+            видов медицинских вмешательств или потребовать их прекращения.
+        </p>
+
+        <p>
+            Я извещен(а) о необходимости соблюдения режима лечения, в том числе назначенного 
+            лечащим врачом режима, и правил поведения в медицинской организации.
+        </p>
+
+        <p>
+            Я имел(а) возможность задать интересующие меня вопросы относительно медицинского 
+            вмешательства, связанных с ним рисков и получил(а) на них удовлетворительные ответы.
+        </p>
+
+        <p>
+            Настоящее согласие дано добровольно. Я понимаю цель и характер медицинских вмешательств, 
+            их возможные последствия, включая вероятность развития осложнений.
+        </p>
+
+        <p style="margin-top: 20px;">
+            <strong>Дата выдачи согласия:</strong> <span class="field">{{ current_date }}</span>
+        </p>
+
+        {% if services %}
+        <p style="margin-top: 15px;"><strong>Планируемые процедуры:</strong></p>
+        <ul>
+            {% for service in services %}
+            <li>{{ service.name }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div class="signature-block">
+        <div class="signature-item">
+            <div class="signature-line"></div>
+            <p>Подпись пациента</p>
+        </div>
+        <div class="signature-item">
+            <div class="signature-line"></div>
+            <p>Подпись врача</p>
+        </div>
+    </div>
+
+    <p style="margin-top: 40px; font-size: 9pt; text-align: center;">
+        Согласие оформлено {{ current_date }} | {{ organization.name }}<br>
+        Хранится в медицинской карте пациента
+    </p>
+</body>
+</html>
+

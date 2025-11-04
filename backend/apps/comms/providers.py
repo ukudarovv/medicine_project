@@ -140,6 +140,174 @@ class MockSMSProvider:
         return (len(text) + max_chars_multi - 1) // max_chars_multi
 
 
+# ==================== Sprint 4: Kazakhstan SMS Providers ====================
+
+
+class BeeSMSProvider:
+    """
+    Beeline Kazakhstan SMS Gateway - Sprint 4
+    https://beesms.kz/
+    """
+    
+    def __init__(self, api_key: str, api_secret: str = '', rate_limit: int = 30, price: Decimal = Decimal('18.0')):
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self._rate_limit = rate_limit
+        self._price = price
+        self.api_url = 'https://beesms.kz/api/v1'
+    
+    @property
+    def rate_limit_per_min(self) -> int:
+        return self._rate_limit
+    
+    @property
+    def price_per_sms(self) -> Decimal:
+        return self._price
+    
+    def send(self, *, sender: str, phone: str, body: str) -> SendResult:
+        """Send SMS via BeeSMS"""
+        import requests
+        
+        # Detect cyrillic and calculate segments
+        is_cyrillic = any('\u0400' <= char <= '\u04FF' for char in body)
+        segments = self.calculate_segments(body, is_cyrillic)
+        cost = self._price * segments
+        
+        try:
+            response = requests.post(
+                f'{self.api_url}/send',
+                json={
+                    'api_key': self.api_key,
+                    'sender': sender,
+                    'phone': phone,
+                    'message': body,
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"[BeeSMS] Sent to {phone}, ID: {data.get('message_id')}")
+                return SendResult(
+                    success=True,
+                    message_id=str(data.get('message_id', '')),
+                    cost=cost,
+                    segments=segments
+                )
+            else:
+                logger.error(f"[BeeSMS] Failed: {response.text}")
+                return SendResult(
+                    success=False,
+                    message_id='',
+                    cost=Decimal('0'),
+                    error=response.text,
+                    segments=segments
+                )
+        except Exception as e:
+            logger.error(f"[BeeSMS] Exception: {e}")
+            return SendResult(
+                success=False,
+                message_id='',
+                cost=Decimal('0'),
+                error=str(e),
+                segments=segments
+            )
+    
+    def get_status(self, provider_msg_id: str) -> DeliveryStatus:
+        """Get delivery status from BeeSMS"""
+        # Mock implementation
+        return DeliveryStatus(status='sent')
+    
+    @staticmethod
+    def calculate_segments(text: str, is_cyrillic: bool = True) -> int:
+        max_chars = 70 if is_cyrillic else 160
+        if len(text) <= max_chars:
+            return 1
+        max_chars_multi = 67 if is_cyrillic else 153
+        return (len(text) + max_chars_multi - 1) // max_chars_multi
+
+
+class AltelSMSProvider:
+    """
+    Altel/Tele2 Kazakhstan SMS Gateway - Sprint 4
+    """
+    
+    def __init__(self, api_key: str, api_secret: str = '', rate_limit: int = 30, price: Decimal = Decimal('17.0')):
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self._rate_limit = rate_limit
+        self._price = price
+        self.api_url = 'https://sms.altel.kz/api'
+    
+    @property
+    def rate_limit_per_min(self) -> int:
+        return self._rate_limit
+    
+    @property
+    def price_per_sms(self) -> Decimal:
+        return self._price
+    
+    def send(self, *, sender: str, phone: str, body: str) -> SendResult:
+        """Send SMS via Altel"""
+        import requests
+        
+        is_cyrillic = any('\u0400' <= char <= '\u04FF' for char in body)
+        segments = self.calculate_segments(body, is_cyrillic)
+        cost = self._price * segments
+        
+        try:
+            response = requests.post(
+                f'{self.api_url}/send',
+                headers={'Authorization': f'Bearer {self.api_key}'},
+                json={
+                    'from': sender,
+                    'to': phone,
+                    'text': body,
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"[Altel] Sent to {phone}, ID: {data.get('msg_id')}")
+                return SendResult(
+                    success=True,
+                    message_id=str(data.get('msg_id', '')),
+                    cost=cost,
+                    segments=segments
+                )
+            else:
+                logger.error(f"[Altel] Failed: {response.text}")
+                return SendResult(
+                    success=False,
+                    message_id='',
+                    cost=Decimal('0'),
+                    error=response.text,
+                    segments=segments
+                )
+        except Exception as e:
+            logger.error(f"[Altel] Exception: {e}")
+            return SendResult(
+                success=False,
+                message_id='',
+                cost=Decimal('0'),
+                error=str(e),
+                segments=segments
+            )
+    
+    def get_status(self, provider_msg_id: str) -> DeliveryStatus:
+        """Get delivery status from Altel"""
+        return DeliveryStatus(status='sent')
+    
+    @staticmethod
+    def calculate_segments(text: str, is_cyrillic: bool = True) -> int:
+        max_chars = 70 if is_cyrillic else 160
+        if len(text) <= max_chars:
+            return 1
+        max_chars_multi = 67 if is_cyrillic else 153
+        return (len(text) + max_chars_multi - 1) // max_chars_multi
+
+
 def get_sms_provider(organization=None) -> MockSMSProvider:
     """Get SMS provider based on settings or organization config"""
     from django.conf import settings
@@ -153,12 +321,30 @@ def get_sms_provider(organization=None) -> MockSMSProvider:
                 is_active=True
             ).first()
             if provider_config:
-                return MockSMSProvider(
-                    api_key=provider_config.api_key,
-                    api_secret=provider_config.api_secret,
-                    rate_limit=provider_config.rate_limit_per_min,
-                    price=provider_config.price_per_sms
-                )
+                # Check provider name to determine which class to use
+                provider_name = provider_config.name.lower()
+                
+                if 'beeline' in provider_name or 'beesms' in provider_name:
+                    return BeeSMSProvider(
+                        api_key=provider_config.api_key,
+                        api_secret=provider_config.api_secret,
+                        rate_limit=provider_config.rate_limit_per_min,
+                        price=provider_config.price_per_sms
+                    )
+                elif 'altel' in provider_name or 'tele2' in provider_name:
+                    return AltelSMSProvider(
+                        api_key=provider_config.api_key,
+                        api_secret=provider_config.api_secret,
+                        rate_limit=provider_config.rate_limit_per_min,
+                        price=provider_config.price_per_sms
+                    )
+                else:
+                    return MockSMSProvider(
+                        api_key=provider_config.api_key,
+                        api_secret=provider_config.api_secret,
+                        rate_limit=provider_config.rate_limit_per_min,
+                        price=provider_config.price_per_sms
+                    )
         except Exception as e:
             logger.warning(f"Failed to load provider config: {e}")
     
@@ -167,8 +353,11 @@ def get_sms_provider(organization=None) -> MockSMSProvider:
     
     if provider_type == 'mock':
         return MockSMSProvider()
+    elif provider_type == 'beesms':
+        return BeeSMSProvider(api_key=getattr(settings, 'SMS_API_KEY', ''))
+    elif provider_type == 'altel':
+        return AltelSMSProvider(api_key=getattr(settings, 'SMS_API_KEY', ''))
     else:
-        # Future: add real provider implementations (Smsc.kz, etc.)
         logger.warning(f"Unknown provider type '{provider_type}', falling back to mock")
         return MockSMSProvider()
 

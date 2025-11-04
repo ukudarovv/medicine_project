@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Availability, Appointment, AppointmentResource
+from .models import Availability, Appointment, AppointmentResource, Waitlist
 from apps.staff.serializers import EmployeeListSerializer
 from apps.patients.serializers import PatientListSerializer
 
@@ -182,4 +182,30 @@ class AppointmentMoveSerializer(serializers.Serializer):
             raise serializers.ValidationError('Start time must be before end time')
         
         return attrs
+
+
+class WaitlistSerializer(serializers.ModelSerializer):
+    """
+    Waitlist serializer for patient waiting list (Sprint 2)
+    """
+    patient_name = serializers.CharField(source='patient.full_name', read_only=True)
+    patient_phone = serializers.CharField(source='patient.phone', read_only=True)
+    service_name = serializers.CharField(source='service.name', read_only=True, allow_null=True)
+    employee_name = serializers.CharField(source='employee.full_name', read_only=True, allow_null=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    time_window_display = serializers.CharField(source='get_time_window_display', read_only=True)
+    contacted_by_name = serializers.CharField(source='contacted_by.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = Waitlist
+        fields = [
+            'id', 'patient', 'patient_name', 'patient_phone',
+            'service', 'service_name', 'employee', 'employee_name',
+            'preferred_date', 'preferred_period_start', 'preferred_period_end',
+            'time_window', 'time_window_display',
+            'priority', 'comment', 'status', 'status_display',
+            'contacted_at', 'contacted_by', 'contacted_by_name', 'contact_result',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
 

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Заключение медицинской комиссии</title>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header h1 { font-size: 14pt; font-weight: bold; margin: 5px 0; }
+        .org-info { text-align: center; font-size: 10pt; margin-bottom: 20px; }
+        .section { margin-bottom: 20px; }
+        .section-title { font-weight: bold; font-size: 13pt; border-bottom: 1px solid #000; margin-bottom: 10px; padding-bottom: 5px; }
+        .field { margin: 5px 0; }
+        .field-label { font-weight: bold; min-width: 180px; display: inline-block; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        table, th, td { border: 1px solid #000; }
+        th, td { padding: 8px; text-align: left; }
+        th { background-color: #f0f0f0; font-weight: bold; }
+        .commission { margin-top: 30px; }
+        .commission-member { margin: 10px 0; padding: 10px; background: #f9f9f9; }
+        .signature-block { margin-top: 40px; }
+        .signature-line { border-bottom: 1px solid #000; width: 250px; display: inline-block; }
+        .conclusion { padding: 15px; border: 2px solid #000; margin: 15px 0; background: #fff9e6; }
+        .stamp-area { width: 150px; height: 100px; border: 1px dashed #999; display: inline-block; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ЗАКЛЮЧЕНИЕ МЕДИЦИНСКОЙ КОМИССИИ</h1>
+        <p>по результатам медицинского осмотра</p>
+    </div>
+
+    <div class="org-info">
+        <strong>{{ organization.name }}</strong><br>
+        {{ organization.address }}<br>
+        {% if organization.license %}Лицензия: {{ organization.license }}{% endif %}
+    </div>
+
+    <div class="section">
+        <div class="section-title">1. Сведения о работнике</div>
+        <div class="field"><span class="field-label">ФИО:</span> {{ examination.patient.full_name }}</div>
+        <div class="field"><span class="field-label">Дата рождения:</span> {{ examination.patient.birth_date }} ({{ examination.patient.age }} лет)</div>
+        <div class="field"><span class="field-label">Пол:</span> {{ examination.patient.get_sex_display }}</div>
+        <div class="field"><span class="field-label">ИИН:</span> {{ examination.patient.iin|default:"Не указан" }}</div>
+        <div class="field"><span class="field-label">Адрес:</span> {{ examination.patient.address }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. Данные медосмотра</div>
+        <div class="field"><span class="field-label">Тип осмотра:</span> {{ examination.get_exam_type_display }}</div>
+        <div class="field"><span class="field-label">Дата осмотра:</span> {{ examination.exam_date }}</div>
+        <div class="field"><span class="field-label">Профиль работы:</span> {{ examination.work_profile }}</div>
+    </div>
+
+    {% if examination.past_diseases.all %}
+    <div class="section">
+        <div class="section-title">3. Перенесенные заболевания</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Заболевание</th>
+                    <th>МКБ-10</th>
+                    <th>Год</th>
+                    <th>Примечание</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for disease in examination.past_diseases.all %}
+                <tr>
+                    <td>{{ disease.disease_name }}</td>
+                    <td>{{ disease.icd_code.code|default:"-" }}</td>
+                    <td>{{ disease.year }}</td>
+                    <td>{{ disease.note|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if examination.vaccinations.all %}
+    <div class="section">
+        <div class="section-title">4. Прививки</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Вакцина</th>
+                    <th>Дата</th>
+                    <th>Ревакцинация</th>
+                    <th>Серия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vacc in examination.vaccinations.all %}
+                <tr>
+                    <td>{{ vacc.vaccine_type }}</td>
+                    <td>{{ vacc.date }}</td>
+                    <td>{{ vacc.revaccination_date|default:"-" }}</td>
+                    <td>{{ vacc.serial_number|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if examination.lab_tests.all %}
+    <div class="section">
+        <div class="section-title">5. Лабораторные и инструментальные исследования</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Исследование</th>
+                    <th>Дата</th>
+                    <th>Результат</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for test in examination.lab_tests.all %}
+                <tr>
+                    <td>{{ test.get_test_type_display }}{% if test.test_name %}<br><small>{{ test.test_name }}</small>{% endif %}</td>
+                    <td>{{ test.performed_date }}</td>
+                    <td>{{ test.result }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if examination.commission_members %}
+    <div class="section commission">
+        <div class="section-title">6. Состав медицинской комиссии</div>
+        {% for member in examination.commission_members %}
+        <div class="commission-member">
+            <strong>{{ member.specialty }}</strong>
+            {% if member.doctor_name %}- {{ member.doctor_name }}{% endif %}<br>
+            {% if member.conclusion %}Заключение: {{ member.conclusion }}{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="section conclusion">
+        <div class="section-title">ЗАКЛЮЧЕНИЕ</div>
+        <p>{{ examination.conclusion }}</p>
+        <p style="margin-top: 15px;">
+            <strong>
+            {% if examination.fit_for_work %}
+                ✓ ГОДЕН К ВЫПОЛНЕНИЮ РАБОТЫ
+            {% else %}
+                ✗ НЕ ГОДЕН К ВЫПОЛНЕНИЮ РАБОТЫ
+            {% endif %}
+            </strong>
+        </p>
+        {% if examination.restrictions %}
+        <p style="margin-top: 10px;"><strong>Ограничения и рекомендации:</strong><br>{{ examination.restrictions }}</p>
+        {% endif %}
+        {% if examination.next_exam_date %}
+        <p style="margin-top: 10px;"><strong>Дата следующего осмотра:</strong> {{ examination.next_exam_date }}</p>
+        {% endif %}
+    </div>
+
+    <div class="signature-block">
+        <p>Председатель комиссии: <span class="signature-line"></span></p>
+        <p style="margin-top: 15px;">Члены комиссии:</p>
+        <p><span class="signature-line"></span></p>
+        <p><span class="signature-line"></span></p>
+        <p><span class="signature-line"></span></p>
+        
+        <p style="margin-top: 20px;">Дата: <span class="signature-line">{{ current_date }}</span></p>
+        
+        <p style="margin-top: 15px;">М.П. <span class="stamp-area"></span></p>
+    </div>
+
+    <p style="margin-top: 30px; text-align: center; font-size: 9pt;">
+        Заключение сформировано {{ current_date }} | {{ organization.name }}
+    </p>
+</body>
+</html>
+

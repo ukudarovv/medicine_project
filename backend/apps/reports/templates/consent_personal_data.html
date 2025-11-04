@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Согласие на обработку персональных данных</title>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 14pt; font-weight: bold; }
+        .content { text-align: justify; }
+        .content p { margin: 10px 0; }
+        .field { display: inline-block; border-bottom: 1px solid #000; min-width: 200px; }
+        .signature-block { margin-top: 40px; display: flex; justify-content: space-between; }
+        .signature-item { text-align: center; }
+        .signature-line { border-bottom: 1px solid #000; width: 200px; margin: 0 auto 5px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>СОГЛАСИЕ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ</h1>
+    </div>
+
+    <div class="content">
+        <p>Я, <span class="field">{{ patient.full_name }}</span>,</p>
+        <p>ИИН: <span class="field">{{ patient.iin }}</span>,</p>
+        <p>проживающий(ая) по адресу: <span class="field">{{ patient.address }}</span>,</p>
+        
+        <p style="margin-top: 20px;">
+            <strong>НАСТОЯЩИМ ДАЮ СОГЛАСИЕ</strong>
+        </p>
+
+        <p>
+            <span class="field">{{ organization.name }}</span> (далее – Оператор), 
+            расположенному по адресу: <span class="field">{{ organization.address }}</span>, 
+            на обработку моих персональных данных в следующих целях:
+        </p>
+
+        <ol>
+            <li>Оказание медицинских услуг и ведение медицинской документации;</li>
+            <li>Выполнение договорных обязательств;</li>
+            <li>Обеспечение качества оказываемых услуг;</li>
+            <li>Проведение медицинской диагностики;</li>
+            <li>Информирование о результатах анализов и обследований;</li>
+            <li>Напоминания о записях на прием;</li>
+            <li>Проведение статистических и аналитических исследований.</li>
+        </ol>
+
+        <p>
+            Я согласен(на) на обработку следующих персональных данных: фамилия, имя, отчество, 
+            дата рождения, пол, ИИН, адрес проживания, контактные телефоны, адрес электронной 
+            почты, сведения о состоянии здоровья, медицинские заключения и другие данные, 
+            необходимые для оказания медицинских услуг.
+        </p>
+
+        <p>
+            Я согласен(на) на осуществление Оператором следующих действий с моими персональными 
+            данными: сбор, запись, систематизация, накопление, хранение, уточнение (обновление, 
+            изменение), извлечение, использование, передача (распространение, предоставление, 
+            доступ), обезличивание, блокирование, удаление, уничтожение персональных данных.
+        </p>
+
+        <p>
+            Обработка персональных данных может осуществляться как с использованием средств 
+            автоматизации, так и без использования таких средств.
+        </p>
+
+        <p>
+            Согласие дается до момента его отзыва в письменной форме.
+        </p>
+
+        <p>
+            Я проинформирован(а) о праве отозвать настоящее согласие путем направления письменного 
+            заявления Оператору по указанному выше адресу.
+        </p>
+
+        <p style="margin-top: 20px;">
+            Дата выдачи согласия: <span class="field">{{ current_date }}</span>
+        </p>
+    </div>
+
+    <div class="signature-block">
+        <div class="signature-item">
+            <div class="signature-line"></div>
+            <p>Подпись пациента</p>
+        </div>
+        <div class="signature-item">
+            <div class="signature-line"></div>
+            <p>Расшифровка подписи</p>
+        </div>
+    </div>
+
+    <p style="margin-top: 40px; font-size: 9pt; text-align: center;">
+        Согласие оформлено {{ current_date }} | {{ organization.name }}
+    </p>
+</body>
+</html>
+

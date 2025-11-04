@@ -29,6 +29,20 @@ class Visit(models.Model):
     diagnosis = models.TextField(blank=True)
     treatment_plan = models.TextField(blank=True)
     
+    # Structured diary for visit (Sprint 2)
+    diary_structured = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Структурированный дневник: complaints, anamnesis, examination, conclusion, recommendations'
+    )
+    
+    # Templates used during visit
+    templates_used = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='ID шаблонов, использованных при записи'
+    )
+    
     created_by = models.ForeignKey(
         'core.User',
         on_delete=models.SET_NULL,
@@ -145,4 +159,42 @@ class VisitResource(models.Model):
     
     def __str__(self):
         return f"{self.resource.name} - {self.visit}"
+
+
+class VisitFile(models.Model):
+    """
+    Files attached to visit (images, documents, etc.)
+    """
+    FILE_TYPES = [
+        ('xray', 'Рентген'),
+        ('photo', 'Фото'),
+        ('document', 'Документ'),
+        ('lab_result', 'Результат анализа'),
+        ('other', 'Другое'),
+    ]
+    
+    visit = models.ForeignKey(
+        Visit,
+        on_delete=models.CASCADE,
+        related_name='files'
+    )
+    file = models.FileField(upload_to='visits/%Y/%m/')
+    file_type = models.CharField(max_length=20, choices=FILE_TYPES, default='other')
+    title = models.CharField(max_length=200, blank=True)
+    description = models.TextField(blank=True)
+    uploaded_by = models.ForeignKey(
+        'core.User',
+        on_delete=models.SET_NULL,
+        null=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'visit_files'
+        verbose_name = 'Visit File'
+        verbose_name_plural = 'Visit Files'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.title or self.file.name} - {self.visit}"
 

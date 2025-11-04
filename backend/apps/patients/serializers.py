@@ -2,8 +2,9 @@ from rest_framework import serializers
 from .models import (
     Patient, Representative, PatientFile,
     PatientPhone, PatientSocialNetwork, PatientContactPerson,
-    PatientDisease, PatientDiagnosis, PatientDoseLoad
+    PatientDisease, PatientDiagnosis, PatientDoseLoad, ConsentHistory
 )
+from .validators import validate_iin
 
 
 class RepresentativeSerializer(serializers.ModelSerializer):
@@ -99,6 +100,28 @@ class PatientDoseLoadSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
+# ============================================================================
+# TEMPORARILY DISABLED - Uncomment after migrations
+# ============================================================================
+# class ConsentHistorySerializer(serializers.ModelSerializer):
+#     """
+#     Consent history serializer for KZ compliance
+#     """
+#     consent_type_display = serializers.CharField(source='get_consent_type_display', read_only=True)
+#     status_display = serializers.CharField(source='get_status_display', read_only=True)
+#     accepted_by_name = serializers.CharField(source='accepted_by.get_full_name', read_only=True, allow_null=True)
+#     
+#     class Meta:
+#         model = ConsentHistory
+#         fields = [
+#             'id', 'patient', 'consent_type', 'consent_type_display',
+#             'status', 'status_display', 'ip_address', 'user_agent',
+#             'accepted_by', 'accepted_by_name', 'created_at'
+#         ]
+#         read_only_fields = ['id', 'created_at']
+# ============================================================================
+
+
 class PatientSerializer(serializers.ModelSerializer):
     """
     Patient serializer
@@ -106,6 +129,8 @@ class PatientSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
     age = serializers.IntegerField(read_only=True)
     sex_display = serializers.CharField(source='get_sex_display', read_only=True)
+    osms_status_display = serializers.SerializerMethodField()
+    osms_category_display = serializers.SerializerMethodField()
     representatives = RepresentativeSerializer(many=True, read_only=True)
     files = PatientFileSerializer(many=True, read_only=True)
     additional_phones = PatientPhoneSerializer(many=True, read_only=True)
@@ -114,6 +139,7 @@ class PatientSerializer(serializers.ModelSerializer):
     diseases = PatientDiseaseSerializer(many=True, read_only=True)
     diagnoses = PatientDiagnosisSerializer(many=True, read_only=True)
     dose_loads = PatientDoseLoadSerializer(many=True, read_only=True)
+    # consent_history = ConsentHistorySerializer(many=True, read_only=True)  # Disabled until migrations
     
     class Meta:
         model = Patient
@@ -128,6 +154,37 @@ class PatientSerializer(serializers.ModelSerializer):
             'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def to_representation(self, instance):
+        """Override to safely include KZ fields if they exist"""
+        data = super().to_representation(instance)
+        
+        # Safely add KZ fields if they exist in DB
+        if hasattr(instance, 'iin_verified'):
+            data['iin_verified'] = instance.iin_verified
+        if hasattr(instance, 'iin_verified_at'):
+            data['iin_verified_at'] = instance.iin_verified_at
+        if hasattr(instance, 'kato_address'):
+            data['kato_address'] = instance.kato_address
+        if hasattr(instance, 'osms_status'):
+            data['osms_status'] = instance.osms_status
+            data['osms_status_display'] = self.get_osms_status_display(instance)
+        if hasattr(instance, 'osms_category'):
+            data['osms_category'] = instance.osms_category
+            data['osms_category_display'] = self.get_osms_category_display(instance)
+        if hasattr(instance, 'osms_verified_at'):
+            data['osms_verified_at'] = instance.osms_verified_at
+        
+        # Safely add consent_history if exists
+        if hasattr(instance, 'consent_history'):
+            try:
+                # Temporarily disabled - uncomment after migrations
+                # data['consent_history'] = ConsentHistorySerializer(instance.consent_history.all(), many=True).data
+                data['consent_history'] = []
+            except:
+                data['consent_history'] = []
+        
+        return data
     
     def validate_phone(self, value):
         """
@@ -157,12 +214,31 @@ class PatientSerializer(serializers.ModelSerializer):
         
         return value
     
+    def get_osms_status_display(self, obj):
+        """Safe getter for OSMS status display"""
+        try:
+            return obj.get_osms_status_display() if hasattr(obj, 'osms_status') and obj.osms_status else None
+        except AttributeError:
+            return None
+    
+    def get_osms_category_display(self, obj):
+        """Safe getter for OSMS category display"""
+        try:
+            return obj.get_osms_category_display() if hasattr(obj, 'osms_category') and obj.osms_category else None
+        except AttributeError:
+            return None
+    
     def validate_iin(self, value):
         """
-        Validate that IIN is unique within organization (if provided)
+        Validate IIN format and uniqueness within organization
         """
         if not value:
             return value
+        
+        # Validate IIN format using KZ validator
+        validation_result = validate_iin(value)
+        if not validation_result['valid']:
+            raise serializers.ValidationError(validation_result['error'])
         
         organization = self.context['request'].user.organization
         

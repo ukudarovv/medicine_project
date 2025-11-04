@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Амбулаторная карта пациента</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.5;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 16pt;
+            margin: 10px 0;
+        }
+        .header p {
+            margin: 5px 0;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 14pt;
+            border-bottom: 2px solid #000;
+            margin-bottom: 10px;
+        }
+        .field {
+            margin: 5px 0;
+        }
+        .field-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 200px;
+        }
+        .field-value {
+            display: inline-block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        table, th, td {
+            border: 1px solid #000;
+        }
+        th, td {
+            padding: 5px;
+            text-align: left;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+        .footer {
+            margin-top: 40px;
+            font-size: 10pt;
+        }
+        .signature {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-block {
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1px solid #000;
+            width: 200px;
+            margin: 0 auto 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>АМБУЛАТОРНАЯ КАРТА ПАЦИЕНТА</h1>
+        <p>№ {{ patient.id }} от {{ date }}</p>
+        <p>{{ organization.name }}</p>
+        <p>{{ organization.address }}</p>
+        <p>Тел: {{ organization.phone }}</p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">1. ПАСПОРТНАЯ ЧАСТЬ</div>
+        <div class="field">
+            <span class="field-label">ФИО:</span>
+            <span class="field-value">{{ patient.full_name }}</span>
+        </div>
+        <div class="field">
+            <span class="field-label">Дата рождения:</span>
+            <span class="field-value">{{ patient.birth_date }} (возраст: {{ patient.age }} лет)</span>
+        </div>
+        <div class="field">
+            <span class="field-label">Пол:</span>
+            <span class="field-value">{{ patient.get_sex_display }}</span>
+        </div>
+        <div class="field">
+            <span class="field-label">ИИН:</span>
+            <span class="field-value">{{ patient.iin }}{% if patient.iin_verified %} ✓ верифицирован{% endif %}</span>
+        </div>
+        <div class="field">
+            <span class="field-label">Телефон:</span>
+            <span class="field-value">{{ patient.phone }}</span>
+        </div>
+        <div class="field">
+            <span class="field-label">Email:</span>
+            <span class="field-value">{{ patient.email }}</span>
+        </div>
+        <div class="field">
+            <span class="field-label">Адрес:</span>
+            <span class="field-value">{{ patient.address }}</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. СТАТУС ОСМС</div>
+        <div class="field">
+            <span class="field-label">Статус:</span>
+            <span class="field-value">{{ patient.get_osms_status_display|default:"Не указан" }}</span>
+        </div>
+        {% if patient.osms_category %}
+        <div class="field">
+            <span class="field-label">Категория плательщика:</span>
+            <span class="field-value">{{ patient.get_osms_category_display }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. АНАМНЕЗ</div>
+        <div class="field">
+            <span class="field-label">Аллергии:</span>
+            <span class="field-value">{{ patient.allergies|default:"Не указаны" }}</span>
+        </div>
+        <div class="field">
+            <span class="field-label">Анамнез:</span>
+            <span class="field-value">{{ patient.medical_history|default:"Не указан" }}</span>
+        </div>
+    </div>
+
+    {% if patient.diseases.all %}
+    <div class="section">
+        <div class="section-title">4. ХРОНИЧЕСКИЕ ЗАБОЛЕВАНИЯ</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Диагноз</th>
+                    <th>МКБ-10</th>
+                    <th>Дата начала</th>
+                    <th>Врач</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for disease in patient.diseases.all %}
+                <tr>
+                    <td>{{ disease.diagnosis }}</td>
+                    <td>{{ disease.icd_code.code|default:"-" }}</td>
+                    <td>{{ disease.start_date }}</td>
+                    <td>{{ disease.doctor.full_name|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <div class="section-title">5. ПРИМЕЧАНИЯ</div>
+        <p>{{ patient.notes|default:"Нет примечаний" }}</p>
+    </div>
+
+    <div class="footer">
+        <div class="signature">
+            <div class="signature-block">
+                <div class="signature-line"></div>
+                <p>Врач</p>
+            </div>
+            <div class="signature-block">
+                <div class="signature-line"></div>
+                <p>Дата</p>
+            </div>
+        </div>
+        <p style="margin-top: 20px; text-align: center; font-size: 9pt;">
+            Карта сформирована {{ current_date }} | Medicine ERP v1.2.0
+        </p>
+    </div>
+</body>
+</html>
+

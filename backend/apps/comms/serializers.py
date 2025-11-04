@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Template, MessageLog, SmsProvider, Campaign, CampaignAudience,
     CampaignMessageTemplate, CampaignRecipient, Reminder, ReminderJob,
-    Message, SmsBalanceSnapshot, ContactLog, AuditLog
+    Message, SmsBalanceSnapshot, ContactLog, AuditLog, PatientContact
 )
 
 
@@ -277,4 +277,27 @@ class CampaignPrepareSerializer(serializers.Serializer):
             if key not in allowed_keys:
                 raise serializers.ValidationError(f'Invalid filter key: {key}')
         return value
+
+
+class PatientContactSerializer(serializers.ModelSerializer):
+    """
+    Patient contact history serializer (Sprint 2)
+    """
+    patient_name = serializers.CharField(source='patient.full_name', read_only=True)
+    contact_type_display = serializers.CharField(source='get_contact_type_display', read_only=True)
+    direction_display = serializers.CharField(source='get_direction_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = PatientContact
+        fields = [
+            'id', 'patient', 'patient_name',
+            'contact_type', 'contact_type_display',
+            'direction', 'direction_display',
+            'status', 'status_display',
+            'note', 'next_contact_date',
+            'created_by', 'created_by_name', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at']
 

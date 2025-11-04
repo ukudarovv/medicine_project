@@ -32,7 +32,43 @@ class Patient(models.Model):
     
     # Identity
     iin = models.CharField(max_length=20, blank=True, db_index=True, help_text='ИИН')
+    iin_verified = models.BooleanField(default=False, help_text='ИИН верифицирован')
+    iin_verified_at = models.DateTimeField(null=True, blank=True, help_text='Дата верификации ИИН')
     documents = models.JSONField(default=dict, blank=True, help_text='Документы (паспорт и т.д.)')
+    
+    # KZ Address (KATO)
+    kato_address = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Адрес по КАТО (region, district, city, street, building, apartment, kato_code, coordinates)'
+    )
+    
+    # OSMS (Kazakhstan medical insurance)
+    OSMS_STATUS_CHOICES = [
+        ('insured', 'Застрахован'),
+        ('not_insured', 'Не застрахован'),
+    ]
+    OSMS_CATEGORY_CHOICES = [
+        ('employee', 'Наемный работник'),
+        ('self_employed', 'ИП/Самозанятый'),
+        ('socially_vulnerable', 'Социально уязвимый'),
+        ('civil_servant', 'Бюджетник'),
+        ('pensioner', 'Пенсионер'),
+        ('other', 'Другое'),
+    ]
+    osms_status = models.CharField(
+        max_length=20,
+        choices=OSMS_STATUS_CHOICES,
+        blank=True,
+        help_text='Статус ОСМС'
+    )
+    osms_category = models.CharField(
+        max_length=30,
+        choices=OSMS_CATEGORY_CHOICES,
+        blank=True,
+        help_text='Категория плательщика ОСМС'
+    )
+    osms_verified_at = models.DateTimeField(null=True, blank=True, help_text='Дата проверки статуса ОСМС')
     
     # Consents and agreements
     consents = models.JSONField(
@@ -381,4 +417,425 @@ class PatientDoseLoad(models.Model):
     
     def __str__(self):
         return f"{self.study_type} - {self.dose} мЗв"
+
+
+class ConsentHistory(models.Model):
+    """
+    Consent history for audit purposes (KZ compliance)
+    """
+    CONSENT_TYPE_CHOICES = [
+        ('personal_data', 'Обработка персональных данных'),
+        ('medical_intervention', 'Медицинское вмешательство'),
+        ('sms_marketing', 'SMS-рассылки'),
+        ('whatsapp_marketing', 'WhatsApp-рассылки'),
+    ]
+    STATUS_CHOICES = [
+        ('accepted', 'Принято'),
+        ('revoked', 'Отозвано'),
+    ]
+    
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='consent_history'
+    )
+    consent_type = models.CharField(max_length=30, choices=CONSENT_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, help_text='User agent браузера')
+    accepted_by = models.ForeignKey(
+        'core.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='accepted_consents',
+        help_text='Пользователь, который зафиксировал согласие'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'consent_history'
+        verbose_name = 'Consent History'
+        verbose_name_plural = 'Consent Histories'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['patient', 'consent_type']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.patient.full_name} - {self.get_consent_type_display()} ({self.get_status_display()})"
+
+
+# ==================== Sprint 3: Medical Examinations ====================
+
+
+class MedicalExamination(models.Model):
+    """
+    Medical examination (occupational/periodic) - Sprint 3
+    Медосмотр (производственный/периодический)
+    """
+    EXAM_TYPES = [
+        ('preliminary', 'Предварительный'),
+        ('periodic', 'Периодический'),
+        ('extraordinary', 'Внеочередной'),
+    ]
+    
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='medical_examinations'
+    )
+    exam_type = models.CharField(max_length=20, choices=EXAM_TYPES)
+    exam_date = models.DateField(help_text='Дата проведения осмотра')
+    work_profile = models.TextField(blank=True, help_text='Профиль работы, условия труда')
+    conclusion = models.TextField(blank=True, help_text='Заключение комиссии')
+    fit_for_work = models.BooleanField(default=True, help_text='Годен к работе')
+    restrictions = models.TextField(blank=True, help_text='Ограничения и рекомендации')
+    next_exam_date = models.DateField(null=True, blank=True, help_text='Дата следующего осмотра')
+    
+    # Commission members stored as JSON
+    commission_members = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Члены комиссии: [{"doctor_id": 1, "specialty": "Терапевт", "conclusion": "..."}]'
+    )
+    
+    created_by = models.ForeignKey(
+        'core.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_exams'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'medical_examinations'
+        verbose_name = 'Medical Examination'
+        verbose_name_plural = 'Medical Examinations'
+        ordering = ['-exam_date']
+        indexes = [
+            models.Index(fields=['patient', 'exam_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.patient.full_name} - {self.get_exam_type_display()} ({self.exam_date})"
+
+
+class MedExamPastDisease(models.Model):
+    """
+    Past diseases for medical examination - Sprint 3
+    Перенесенные заболевания
+    """
+    examination = models.ForeignKey(
+        MedicalExamination,
+        on_delete=models.CASCADE,
+        related_name='past_diseases'
+    )
+    icd_code = models.ForeignKey(
+        'services.ICDCode',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    disease_name = models.CharField(max_length=300, help_text='Название заболевания')
+    year = models.IntegerField(help_text='Год заболевания')
+    note = models.TextField(blank=True)
+    
+    class Meta:
+        db_table = 'medexam_past_diseases'
+        verbose_name = 'Medical Exam Past Disease'
+        verbose_name_plural = 'Medical Exam Past Diseases'
+        ordering = ['-year']
+    
+    def __str__(self):
+        return f"{self.disease_name} ({self.year})"
+
+
+class MedExamVaccination(models.Model):
+    """
+    Vaccinations for medical examination - Sprint 3
+    Прививки
+    """
+    examination = models.ForeignKey(
+        MedicalExamination,
+        on_delete=models.CASCADE,
+        related_name='vaccinations'
+    )
+    vaccine_type = models.CharField(max_length=200, help_text='Тип вакцины')
+    date = models.DateField(help_text='Дата прививки')
+    revaccination_date = models.DateField(null=True, blank=True, help_text='Дата ревакцинации')
+    serial_number = models.CharField(max_length=100, blank=True, help_text='Серия и номер вакцины')
+    note = models.TextField(blank=True)
+    
+    class Meta:
+        db_table = 'medexam_vaccinations'
+        verbose_name = 'Medical Exam Vaccination'
+        verbose_name_plural = 'Medical Exam Vaccinations'
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"{self.vaccine_type} ({self.date})"
+
+
+class MedExamLabTest(models.Model):
+    """
+    Laboratory and instrumental tests for medical examination - Sprint 3
+    Лабораторные и инструментальные исследования
+    """
+    TEST_TYPES = [
+        ('blood_general', 'ОАК (Общий анализ крови)'),
+        ('blood_biochem', 'Биохимия крови'),
+        ('urine', 'ОАМ (Общий анализ мочи)'),
+        ('ecg', 'ЭКГ'),
+        ('xray', 'Рентгенография'),
+        ('fluorography', 'Флюорография'),
+        ('spirometry', 'Спирометрия'),
+        ('audiometry', 'Аудиометрия'),
+        ('vision_test', 'Проверка зрения'),
+        ('other', 'Другое'),
+    ]
+    
+    examination = models.ForeignKey(
+        MedicalExamination,
+        on_delete=models.CASCADE,
+        related_name='lab_tests'
+    )
+    test_type = models.CharField(max_length=30, choices=TEST_TYPES)
+    test_name = models.CharField(max_length=200, blank=True, help_text='Название исследования')
+    result = models.TextField(help_text='Результат исследования')
+    performed_date = models.DateField(help_text='Дата проведения')
+    file = models.ForeignKey(
+        PatientFile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='medexam_lab_tests',
+        help_text='Прикрепленный файл с результатами'
+    )
+    
+    class Meta:
+        db_table = 'medexam_lab_tests'
+        verbose_name = 'Medical Exam Lab Test'
+        verbose_name_plural = 'Medical Exam Lab Tests'
+        ordering = ['-performed_date']
+    
+    def __str__(self):
+        return f"{self.get_test_type_display()} ({self.performed_date})"
+
+
+# ==================== Sprint 3: Treatment Plans ====================
+
+
+class TreatmentPlan(models.Model):
+    """
+    Treatment plan - Sprint 3
+    План лечения
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Черновик'),
+        ('active', 'Активный'),
+        ('completed', 'Завершен'),
+        ('cancelled', 'Отменен'),
+    ]
+    
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='treatment_plans'
+    )
+    title = models.CharField(max_length=300, help_text='Название плана лечения')
+    description = models.TextField(blank=True, help_text='Описание плана')
+    
+    # Pricing
+    total_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text='Общая стоимость плана'
+    )
+    total_cost_frozen = models.BooleanField(
+        default=False,
+        help_text='Цены зафиксированы (не изменяются при изменении прайса)'
+    )
+    
+    # Status and dates
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    start_date = models.DateField(help_text='Дата начала лечения')
+    end_date = models.DateField(null=True, blank=True, help_text='Дата окончания лечения')
+    
+    created_by = models.ForeignKey(
+        'core.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_treatment_plans'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'treatment_plans'
+        verbose_name = 'Treatment Plan'
+        verbose_name_plural = 'Treatment Plans'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['patient', 'status']),
+            models.Index(fields=['start_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.patient.full_name} - {self.title}"
+    
+    def calculate_total_cost(self):
+        """Calculate total cost from all stages"""
+        total = sum(
+            stage.calculate_total_cost()
+            for stage in self.stages.all()
+        )
+        return total
+
+
+class TreatmentStage(models.Model):
+    """
+    Treatment plan stage - Sprint 3
+    Этап плана лечения
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает'),
+        ('in_progress', 'В процессе'),
+        ('completed', 'Завершен'),
+    ]
+    
+    plan = models.ForeignKey(
+        TreatmentPlan,
+        on_delete=models.CASCADE,
+        related_name='stages'
+    )
+    order = models.IntegerField(default=0, help_text='Порядковый номер этапа')
+    title = models.CharField(max_length=300, help_text='Название этапа')
+    description = models.TextField(blank=True, help_text='Описание этапа')
+    
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'treatment_stages'
+        verbose_name = 'Treatment Stage'
+        verbose_name_plural = 'Treatment Stages'
+        ordering = ['plan', 'order']
+    
+    def __str__(self):
+        return f"{self.plan.patient.full_name} - {self.title} (этап {self.order})"
+    
+    def calculate_total_cost(self):
+        """Calculate total cost from all items in stage"""
+        total = sum(item.calculate_total() for item in self.items.all())
+        return total
+
+
+class TreatmentStageItem(models.Model):
+    """
+    Service/product in treatment stage - Sprint 3
+    Услуга/товар в этапе плана
+    """
+    stage = models.ForeignKey(
+        TreatmentStage,
+        on_delete=models.CASCADE,
+        related_name='items'
+    )
+    service = models.ForeignKey(
+        'services.Service',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text='Связанная услуга из прайса'
+    )
+    description = models.CharField(max_length=500, help_text='Описание услуги/товара')
+    
+    # Quantities
+    qty_planned = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=1,
+        help_text='Запланированное количество'
+    )
+    qty_completed = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text='Выполненное количество'
+    )
+    
+    # Pricing (frozen from plan creation)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, help_text='Цена за единицу')
+    discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Dental specific
+    tooth_number = models.CharField(max_length=10, blank=True, help_text='Номер зуба (для стоматологии)')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'treatment_stage_items'
+        verbose_name = 'Treatment Stage Item'
+        verbose_name_plural = 'Treatment Stage Items'
+        ordering = ['stage', 'id']
+    
+    def __str__(self):
+        return f"{self.description} x{self.qty_planned}"
+    
+    def calculate_total(self):
+        """Calculate total price for this item"""
+        subtotal = self.unit_price * self.qty_planned
+        discount = subtotal * (self.discount_percent / 100)
+        return subtotal - discount
+    
+    @property
+    def completion_percent(self):
+        """Calculate completion percentage"""
+        if self.qty_planned == 0:
+            return 0
+        return float(self.qty_completed / self.qty_planned * 100)
+
+
+class TreatmentPlanTemplate(models.Model):
+    """
+    Treatment plan template - Sprint 3
+    Шаблон плана лечения
+    """
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='treatment_plan_templates'
+    )
+    name = models.CharField(max_length=300, help_text='Название шаблона')
+    description = models.TextField(blank=True, help_text='Описание шаблона')
+    
+    # Template data: structure of stages and items
+    template_data = models.JSONField(
+        default=dict,
+        help_text='Структура этапов и услуг: {"stages": [{"title": "...", "items": [...]}]}'
+    )
+    
+    created_by = models.ForeignKey(
+        'core.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_plan_templates'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'treatment_plan_templates'
+        verbose_name = 'Treatment Plan Template'
+        verbose_name_plural = 'Treatment Plan Templates'
+        ordering = ['name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.organization.name})"
 

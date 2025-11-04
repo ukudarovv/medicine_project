@@ -5,13 +5,13 @@ from rest_framework.permissions import IsAuthenticated
 from apps.core.permissions import IsBranchMember, IsMarketer
 from .models import (
     Template, MessageLog, Campaign, Reminder, Message,
-    ContactLog, SmsBalanceSnapshot, SmsProvider as SmsProviderModel
+    ContactLog, SmsBalanceSnapshot, SmsProvider as SmsProviderModel, PatientContact
 )
 from .serializers import (
     TemplateSerializer, MessageLogSerializer, CampaignSerializer, CampaignListSerializer,
     ReminderSerializer, ReminderListSerializer, MessageSerializer,
     ContactLogSerializer, SmsBalanceSnapshotSerializer, SmsProviderSerializer,
-    SendManualMessageSerializer
+    SendManualMessageSerializer, PatientContactSerializer
 )
 from .providers import get_sms_provider
 
@@ -693,4 +693,31 @@ class SmsBalanceViewSet(viewsets.ReadOnlyModelViewSet):
     def current(self, request):
         """Get current period balance - TO BE IMPLEMENTED IN E5"""
         return Response({'message': 'To be implemented in E5'}, status=status.HTTP_501_NOT_IMPLEMENTED)
+
+
+class PatientContactViewSet(viewsets.ModelViewSet):
+    """
+    Patient contact history management (Sprint 2)
+    Tracks all interactions with patients (calls, SMS, visits, etc.)
+    """
+    queryset = PatientContact.objects.all()
+    serializer_class = PatientContactSerializer
+    permission_classes = [IsAuthenticated, IsBranchMember]
+    filterset_fields = ['patient', 'contact_type', 'status', 'direction']
+    
+    def get_queryset(self):
+        user = self.request.user
+        patient_id = self.request.query_params.get('patient')
+        
+        queryset = PatientContact.objects.filter(
+            patient__organization=user.organization
+        )
+        
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        
+        return queryset.select_related('patient', 'created_by')
+    
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 

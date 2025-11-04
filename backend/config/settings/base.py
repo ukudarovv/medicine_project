@@ -119,6 +119,14 @@ TIME_ZONE = 'Asia/Almaty'
 USE_I18N = True
 USE_TZ = True
 
+# KZ-specific settings
+COUNTRY_CODE = 'KZ'
+CURRENCY = 'KZT'
+CURRENCY_SYMBOL = '₸'
+PHONE_MASK = '+7 7XX XXX-XX-XX'
+DATE_FORMAT = 'dd.mm.yyyy'
+HIDE_RF_FIELDS = True  # Hide Russian-specific fields (OMS, SNILS)
+
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Выписка из медицинской карты</title>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 16pt; margin: 10px 0; }
+        .section { margin-bottom: 15px; }
+        .section-title { font-weight: bold; font-size: 13pt; margin-bottom: 10px; border-bottom: 1px solid #000; }
+        .field { margin: 5px 0; }
+        .field-label { font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        table, th, td { border: 1px solid #000; }
+        th, td { padding: 8px; text-align: left; }
+        th { background-color: #f0f0f0; }
+        .signature { margin-top: 30px; }
+        .signature-line { display: inline-block; border-bottom: 1px solid #000; width: 200px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ВЫПИСКА ИЗ МЕДИЦИНСКОЙ КАРТЫ</h1>
+        <p>№ {{ visit.id }} от {{ visit.created_at|date:"d.m.Y" }}</p>
+        <p>{{ organization.name }}</p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Данные пациента</div>
+        <div class="field"><span class="field-label">ФИО:</span> {{ patient.full_name }}</div>
+        <div class="field"><span class="field-label">Дата рождения:</span> {{ patient.birth_date }} ({{ patient.age }} лет)</div>
+        <div class="field"><span class="field-label">ИИН:</span> {{ patient.iin|default:"Не указан" }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Дата визита</div>
+        <div class="field">{{ visit.appointment.start_datetime|date:"d.m.Y H:i" }}</div>
+        <div class="field"><span class="field-label">Врач:</span> {{ visit.appointment.employee.full_name }}</div>
+    </div>
+
+    {% if visit.diary_structured %}
+    <div class="section">
+        <div class="section-title">Дневник приема</div>
+        {% if visit.diary_structured.complaints %}
+        <div class="field"><span class="field-label">Жалобы:</span> {{ visit.diary_structured.complaints }}</div>
+        {% endif %}
+        {% if visit.diary_structured.anamnesis %}
+        <div class="field"><span class="field-label">Анамнез:</span> {{ visit.diary_structured.anamnesis }}</div>
+        {% endif %}
+        {% if visit.diary_structured.examination %}
+        <div class="field"><span class="field-label">Осмотр:</span> {{ visit.diary_structured.examination }}</div>
+        {% endif %}
+        {% if visit.diary_structured.conclusion %}
+        <div class="field"><span class="field-label">Заключение:</span> {{ visit.diary_structured.conclusion }}</div>
+        {% endif %}
+        {% if visit.diary_structured.recommendations %}
+        <div class="field"><span class="field-label">Рекомендации:</span> {{ visit.diary_structured.recommendations }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <div class="section-title">Диагноз</div>
+        <p>{{ visit.diagnosis|default:"Не указан" }}</p>
+    </div>
+
+    {% if visit.services.all %}
+    <div class="section">
+        <div class="section-title">Оказанные услуги</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Услуга</th>
+                    <th>МКБ-10</th>
+                    <th>Количество</th>
+                    <th>Цена (₸)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for service in visit.services.all %}
+                <tr>
+                    <td>{{ service.service.name }}</td>
+                    <td>{{ service.icd.code|default:"-" }}</td>
+                    <td>{{ service.qty }}</td>
+                    <td>{{ service.price }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if visit.prescriptions.all %}
+    <div class="section">
+        <div class="section-title">Назначения</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Препарат</th>
+                    <th>Дозировка</th>
+                    <th>Частота</th>
+                    <th>Длительность (дней)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prescription in visit.prescriptions.all %}
+                <tr>
+                    <td>{{ prescription.medication }}</td>
+                    <td>{{ prescription.dosage }}</td>
+                    <td>{{ prescription.frequency }}</td>
+                    <td>{{ prescription.duration_days }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="signature">
+        <p>Врач: <span class="signature-line">{{ visit.appointment.employee.full_name }}</span></p>
+        <p>Дата: <span class="signature-line">{{ current_date }}</span></p>
+        <p>Подпись: <span class="signature-line"></span></p>
+    </div>
+
+    <p style="margin-top: 30px; text-align: center; font-size: 9pt;">
+        Выписка сформирована {{ current_date }} | Medicine ERP v1.2.0
+    </p>
+</body>
+</html>
+

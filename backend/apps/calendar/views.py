@@ -8,13 +8,14 @@ from datetime import datetime, timedelta
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from apps.core.permissions import IsBranchMember, IsBranchAdmin
-from .models import Availability, Appointment, AppointmentResource
+from .models import Availability, Appointment, AppointmentResource, Waitlist
 from .serializers import (
     AvailabilitySerializer,
     AppointmentSerializer,
     AppointmentListSerializer,
     AppointmentMoveSerializer,
-    AppointmentResourceSerializer
+    AppointmentResourceSerializer,
+    WaitlistSerializer
 )
 
 
@@ -433,4 +434,42 @@ class AppointmentResourceViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(appointment_id=appointment_id)
         
         return queryset.select_related('appointment', 'resource')
+
+
+class WaitlistViewSet(viewsets.ModelViewSet):
+    """
+    Waitlist management (Sprint 2)
+    """
+    queryset = Waitlist.objects.all()
+    serializer_class = WaitlistSerializer
+    permission_classes = [IsAuthenticated, IsBranchMember]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['patient', 'status', 'employee', 'service']
+    
+    def get_queryset(self):
+        user = self.request.user
+        patient_id = self.request.query_params.get('patient')
+        
+        queryset = Waitlist.objects.filter(
+            patient__organization=user.organization
+        )
+        
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        
+        return queryset.select_related('patient', 'service', 'employee', 'contacted_by')
+    
+    @action(detail=True, methods=['post'])
+    def mark_contacted(self, request, pk=None):
+        """Mark waitlist entry as contacted"""
+        waitlist_entry = self.get_object()
+        
+        waitlist_entry.contacted_at = timezone.now()
+        waitlist_entry.contacted_by = request.user
+        waitlist_entry.status = 'contacted'
+        waitlist_entry.contact_result = request.data.get('contact_result', '')
+        waitlist_entry.save(update_fields=['contacted_at', 'contacted_by', 'status', 'contact_result'])
+        
+        serializer = self.get_serializer(waitlist_entry)
+        return Response(serializer.data)
 

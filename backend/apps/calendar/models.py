@@ -206,3 +206,79 @@ class AppointmentResource(models.Model):
     def __str__(self):
         return f"{self.appointment} - {self.resource.name}"
 
+
+class Waitlist(models.Model):
+    """
+    Patient waitlist for appointments (Sprint 2)
+    """
+    TIME_WINDOW_CHOICES = [
+        ('morning', 'Утро (9:00-12:00)'),
+        ('afternoon', 'День (12:00-17:00)'),
+        ('evening', 'Вечер (17:00-20:00)'),
+        ('any', 'Любое время'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('waiting', 'Ожидает'),
+        ('contacted', 'Связались'),
+        ('scheduled', 'Записан'),
+        ('cancelled', 'Отменен'),
+    ]
+    
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='waitlist_entries'
+    )
+    service = models.ForeignKey(
+        'services.Service',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text='Желаемая услуга'
+    )
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text='Желаемый врач'
+    )
+    
+    # Date preferences
+    preferred_date = models.DateField(null=True, blank=True, help_text='Конкретная дата')
+    preferred_period_start = models.DateField(null=True, blank=True, help_text='Начало периода')
+    preferred_period_end = models.DateField(null=True, blank=True, help_text='Конец периода')
+    time_window = models.CharField(max_length=20, choices=TIME_WINDOW_CHOICES, default='any')
+    
+    # Details
+    priority = models.IntegerField(default=0, help_text='Приоритет (0=обычный, выше=важнее)')
+    comment = models.TextField(blank=True, help_text='Комментарий')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting')
+    
+    # Contact tracking
+    contacted_at = models.DateTimeField(null=True, blank=True)
+    contacted_by = models.ForeignKey(
+        'core.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='waitlist_contacts'
+    )
+    contact_result = models.TextField(blank=True, help_text='Результат связи')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'waitlist'
+        verbose_name = 'Waitlist Entry'
+        verbose_name_plural = 'Waitlist Entries'
+        ordering = ['-priority', 'created_at']
+        indexes = [
+            models.Index(fields=['patient', 'status']),
+            models.Index(fields=['status', 'preferred_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.patient.full_name} - {self.get_status_display()}"

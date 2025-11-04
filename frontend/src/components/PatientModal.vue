@@ -206,29 +206,31 @@
             <!-- Документы -->
             <n-card title="Документы" :bordered="false" style="margin-top: 16px">
               <n-space vertical size="large">
-                <n-form-item label="ИИН" path="iin" help="Индивидуальный идентификационный номер">
-                  <n-input v-model:value="formData.iin" placeholder="123456789012" maxlength="12" />
+                <n-form-item label="ИИН" path="iin" help="Индивидуальный идентификационный номер (12 цифр)">
+                  <n-space>
+                    <n-input v-model:value="formData.iin" placeholder="123456789012" maxlength="12" style="width: 250px" />
+                    <n-button type="primary" @click="verifyIIN">
+                      Верифицировать ИИН
+                    </n-button>
+                    <n-tag v-if="formData.iin_verified" type="success" size="small">
+                      ✓ Верифицирован
+                    </n-tag>
+                  </n-space>
                 </n-form-item>
 
-                <n-form-item label="Медицинская страховка">
-                  <n-input v-model:value="formData.insurance_policy" placeholder="Номер полиса" />
+                <!-- ОСМС (Kazakhstan Medical Insurance) -->
+                <n-divider title-placement="left">ОСМС (Обязательное Социальное Медицинское Страхование)</n-divider>
+                
+                <n-form-item label="Статус ОСМС">
+                  <n-radio-group v-model:value="formData.osms_status">
+                    <n-radio value="">Не указан</n-radio>
+                    <n-radio value="insured">Застрахован</n-radio>
+                    <n-radio value="not_insured">Не застрахован</n-radio>
+                  </n-radio-group>
                 </n-form-item>
 
-                <n-form-item label="Дата выдачи страховки">
-                  <n-date-picker
-                    v-model:value="formData.insurance_date"
-                    type="date"
-                    placeholder="дд.мм.гггг"
-                    style="width: 100%"
-                  />
-                </n-form-item>
-
-                <n-form-item label="Страховая компания">
-                  <n-select v-model:value="formData.insurance_org" :options="insuranceOrgOptions" />
-                </n-form-item>
-
-                <n-form-item label="Социальный номер (при наличии)">
-                  <n-input v-model:value="formData.social_number" placeholder="Социальный номер" />
+                <n-form-item v-if="formData.osms_status === 'insured'" label="Категория плательщика ОСМС">
+                  <n-select v-model:value="formData.osms_category" :options="osmsCategoryOptions" />
                 </n-form-item>
               </n-space>
 
@@ -887,6 +889,10 @@ const formData = ref({
   email: '',
   address: '',
   iin: '',
+  iin_verified: false,
+  osms_status: '',
+  osms_category: '',
+  kato_address: {},
   passport_series: '',
   passport_number: '',
   passport_issued_by: '',
@@ -1096,6 +1102,22 @@ function removeDiagnosis(index) {
   diagnoses.value.splice(index, 1)
 }
 
+async function verifyIIN() {
+  if (!formData.value.iin) {
+    message.error('Введите ИИН')
+    return
+  }
+  try {
+    const response = await apiClient.post(`/patients/patients/${formData.value.id}/verify_iin/`)
+    if (response.data.valid) {
+      formData.value.iin_verified = true
+      message.success('ИИН верифицирован успешно')
+    }
+  } catch (error) {
+    message.error(error.response?.data?.error || 'Ошибка верификации ИИН')
+  }
+}
+
 async function handleSave(closeAfter = false) {
   try {
     await formRef.value?.validate()
@@ -1112,6 +1134,9 @@ async function handleSave(closeAfter = false) {
       email: formData.value.email,
       address: formData.value.address,
       iin: formData.value.iin,
+      osms_status: formData.value.osms_status,
+      osms_category: formData.value.osms_category,
+      kato_address: formData.value.kato_address,
       documents: {
         passport_series: formData.value.passport_series,
         passport_number: formData.value.passport_number,

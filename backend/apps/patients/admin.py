@@ -2,7 +2,9 @@ from django.contrib import admin
 from .models import (
     Patient, Representative, PatientFile,
     PatientPhone, PatientSocialNetwork, PatientContactPerson,
-    PatientDisease, PatientDiagnosis, PatientDoseLoad
+    PatientDisease, PatientDiagnosis, PatientDoseLoad, ConsentHistory,
+    MedicalExamination, MedExamPastDisease, MedExamVaccination, MedExamLabTest,
+    TreatmentPlan, TreatmentStage, TreatmentStageItem, TreatmentPlanTemplate
 )
 
 
@@ -45,10 +47,14 @@ class PatientAdmin(admin.ModelAdmin):
             'fields': ('organization', 'first_name', 'last_name', 'middle_name', 'birth_date', 'sex')
         }),
         ('Контакты', {
-            'fields': ('phone', 'email', 'address')
+            'fields': ('phone', 'email', 'address', 'kato_address')
         }),
         ('Документы', {
-            'fields': ('iin', 'documents')
+            'fields': ('iin', 'iin_verified', 'iin_verified_at', 'documents')
+        }),
+        ('ОСМС (КZ)', {
+            'fields': ('osms_status', 'osms_category', 'osms_verified_at'),
+            'classes': ('collapse',)
         }),
         ('Согласия', {
             'fields': ('consents',),
@@ -122,3 +128,80 @@ class PatientDoseLoadAdmin(admin.ModelAdmin):
     list_display = ['patient', 'study_type', 'dose', 'date']
     list_filter = ['date']
     raw_id_fields = ['patient']
+
+
+@admin.register(ConsentHistory)
+class ConsentHistoryAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'consent_type', 'status', 'accepted_by', 'ip_address', 'created_at']
+    list_filter = ['consent_type', 'status', 'created_at']
+    search_fields = ['patient__first_name', 'patient__last_name', 'ip_address']
+    raw_id_fields = ['patient', 'accepted_by']
+    readonly_fields = ['created_at']
+
+
+# ==================== Sprint 3: Medical Examinations ====================
+
+
+class MedExamPastDiseaseInline(admin.TabularInline):
+    model = MedExamPastDisease
+    extra = 0
+    raw_id_fields = ['icd_code']
+
+
+class MedExamVaccinationInline(admin.TabularInline):
+    model = MedExamVaccination
+    extra = 0
+
+
+class MedExamLabTestInline(admin.TabularInline):
+    model = MedExamLabTest
+    extra = 0
+    raw_id_fields = ['file']
+
+
+@admin.register(MedicalExamination)
+class MedicalExaminationAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'exam_type', 'exam_date', 'fit_for_work', 'next_exam_date']
+    list_filter = ['exam_type', 'exam_date', 'fit_for_work']
+    search_fields = ['patient__first_name', 'patient__last_name', 'work_profile']
+    raw_id_fields = ['patient', 'created_by']
+    inlines = [MedExamPastDiseaseInline, MedExamVaccinationInline, MedExamLabTestInline]
+
+
+# ==================== Sprint 3: Treatment Plans ====================
+
+
+class TreatmentStageInline(admin.TabularInline):
+    model = TreatmentStage
+    extra = 0
+    fields = ['order', 'title', 'status', 'start_date', 'end_date']
+
+
+@admin.register(TreatmentPlan)
+class TreatmentPlanAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'title', 'status', 'start_date', 'total_cost', 'total_cost_frozen']
+    list_filter = ['status', 'total_cost_frozen', 'start_date']
+    search_fields = ['patient__first_name', 'patient__last_name', 'title']
+    raw_id_fields = ['patient', 'created_by']
+    inlines = [TreatmentStageInline]
+
+
+class TreatmentStageItemInline(admin.TabularInline):
+    model = TreatmentStageItem
+    extra = 0
+    raw_id_fields = ['service']
+
+
+@admin.register(TreatmentStage)
+class TreatmentStageAdmin(admin.ModelAdmin):
+    list_display = ['plan', 'order', 'title', 'status', 'start_date']
+    list_filter = ['status']
+    raw_id_fields = ['plan']
+    inlines = [TreatmentStageItemInline]
+
+
+@admin.register(TreatmentPlanTemplate)
+class TreatmentPlanTemplateAdmin(admin.ModelAdmin):
+    list_display = ['name', 'organization', 'created_by', 'created_at']
+    search_fields = ['name', 'description']
+    raw_id_fields = ['organization', 'created_by']

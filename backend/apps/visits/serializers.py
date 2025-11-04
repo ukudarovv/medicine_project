@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Visit, VisitService, VisitPrescription, VisitResource
+from .models import Visit, VisitService, VisitPrescription, VisitResource, VisitFile
 
 
 class VisitServiceSerializer(serializers.ModelSerializer):
@@ -32,10 +32,25 @@ class VisitResourceSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
+class VisitFileSerializer(serializers.ModelSerializer):
+    """Serializer for visit files"""
+    file_type_display = serializers.CharField(source='get_file_type_display', read_only=True)
+    uploaded_by_name = serializers.CharField(source='uploaded_by.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = VisitFile
+        fields = [
+            'id', 'visit', 'file', 'file_type', 'file_type_display',
+            'title', 'description', 'uploaded_by', 'uploaded_by_name', 'created_at'
+        ]
+        read_only_fields = ['id', 'uploaded_by', 'created_at']
+
+
 class VisitSerializer(serializers.ModelSerializer):
     services_list = VisitServiceSerializer(many=True, read_only=True, source='services')
     prescriptions = VisitPrescriptionSerializer(many=True, read_only=True)
     resources = VisitResourceSerializer(many=True, read_only=True)
+    files = VisitFileSerializer(many=True, read_only=True)
     patient_name = serializers.CharField(source='appointment.patient.full_name', read_only=True)
     employee_name = serializers.CharField(source='appointment.employee.full_name', read_only=True)
     
@@ -61,6 +76,25 @@ class VisitSerializer(serializers.ModelSerializer):
             'created_by', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+    
+    def to_representation(self, instance):
+        """Override to safely include Sprint 2 fields if they exist"""
+        data = super().to_representation(instance)
+        
+        # Safely add Sprint 2 fields if they exist in DB
+        if hasattr(instance, 'diary_structured'):
+            data['diary_structured'] = instance.diary_structured
+        if hasattr(instance, 'templates_used'):
+            data['templates_used'] = instance.templates_used
+        
+        # Safely add files if relation exists
+        if hasattr(instance, 'files'):
+            try:
+                data['files'] = VisitFileSerializer(instance.files.all(), many=True).data
+            except:
+                data['files'] = []
+        
+        return data
     
     def get_services(self, obj):
         """Return list of service names"""

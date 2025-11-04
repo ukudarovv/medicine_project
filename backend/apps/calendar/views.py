@@ -179,7 +179,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def conflicts(self, request):
         """
-        Check for appointment conflicts
+        Check for appointment conflicts (with HR integration)
         """
         employee_id = request.query_params.get('employee')
         room_id = request.query_params.get('room')
@@ -200,6 +200,20 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         
         # Check employee conflicts
         if employee_id:
+            from apps.staff.models import Employee
+            
+            # Check if employee is visible in schedule
+            try:
+                employee = Employee.objects.get(id=employee_id)
+                if not employee.show_in_schedule:
+                    conflicts.append({
+                        'type': 'employee',
+                        'message': 'Employee is not available for appointments'
+                    })
+            except Employee.DoesNotExist:
+                pass
+            
+            # Check overlapping appointments
             employee_conflicts = Appointment.objects.filter(
                 employee_id=employee_id,
                 start_datetime__lt=end,
@@ -214,6 +228,26 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     'type': 'employee',
                     'message': 'Employee has overlapping appointments'
                 })
+            
+            # Check minimum gap between visits
+            if hasattr(employee, 'min_gap_between_visits_minutes') and employee.min_gap_between_visits_minutes:
+                gap_minutes = employee.min_gap_between_visits_minutes
+                gap_delta = timedelta(minutes=gap_minutes)
+                
+                nearby_appointments = Appointment.objects.filter(
+                    employee_id=employee_id,
+                    start_datetime__lt=start + gap_delta,
+                    end_datetime__gt=start - gap_delta
+                ).exclude(status__in=['canceled', 'no_show'])
+                
+                if exclude_id:
+                    nearby_appointments = nearby_appointments.exclude(id=exclude_id)
+                
+                if nearby_appointments.exists():
+                    conflicts.append({
+                        'type': 'employee_gap',
+                        'message': f'Minimum gap of {gap_minutes} minutes between visits not met'
+                    })
         
         # Check room conflicts
         if room_id:
@@ -236,6 +270,114 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             'has_conflicts': len(conflicts) > 0,
             'conflicts': conflicts
         })
+    
+    @action(detail=False, methods=['get'])
+    def available_employees(self, request):
+        """
+        Get list of employees available for scheduling
+        """
+        from apps.staff.models import Employee
+        
+        branch_id = request.query_params.get('branch')
+        position_id = request.query_params.get('position')
+        
+        queryset = Employee.objects.filter(
+            organization=request.user.organization,
+            show_in_schedule=True,
+            employment_status='active',
+            is_active=True
+        )
+        
+        if branch_id:
+            queryset = queryset.filter(branch_assignments__branch_id=branch_id)
+        
+        if position_id:
+            queryset = queryset.filter(position_id=position_id)
+        
+        employees = []
+        for emp in queryset:
+            employees.append({
+                'id': emp.id,
+                'full_name': emp.full_name,
+                'position': emp.position.name if emp.position else emp.position_legacy,
+                'color': emp.calendar_color or emp.color,
+                'online_slot_step_minutes': emp.online_slot_step_minutes,
+                'min_gap_between_visits_minutes': emp.min_gap_between_visits_minutes
+            })
+        
+        return Response(employees)
+    
+    @action(detail=False, methods=['get'])
+    def online_booking_slots(self, request):
+        """
+        Get available slots for online booking (considering employee settings)
+        """
+        from apps.staff.models import Employee
+        
+        employee_id = request.query_params.get('employee')
+        date = request.query_params.get('date')
+        
+        if not (employee_id and date):
+            return Response(
+                {'error': 'employee and date are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            employee = Employee.objects.get(id=employee_id)
+        except Employee.DoesNotExist:
+            return Response(
+                {'error': 'Employee not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if employee is available for online booking
+        if not employee.show_in_schedule or employee.employment_status != 'active':
+            return Response({'slots': []})
+        
+        # Get slot step (individual or default)
+        slot_step_minutes = employee.online_slot_step_minutes or 30  # default 30 min
+        
+        # Parse date
+        target_date = datetime.fromisoformat(date).date()
+        weekday = target_date.weekday()
+        
+        # Get employee availability for this weekday
+        availabilities = Availability.objects.filter(
+            employee=employee,
+            weekday=weekday,
+            is_active=True
+        )
+        
+        if not availabilities.exists():
+            return Response({'slots': []})
+        
+        # Generate time slots
+        slots = []
+        for availability in availabilities:
+            current_time = datetime.combine(target_date, availability.time_from)
+            end_time = datetime.combine(target_date, availability.time_to)
+            
+            while current_time < end_time:
+                slot_end = current_time + timedelta(minutes=slot_step_minutes)
+                
+                # Check if slot is not already booked
+                conflicts = Appointment.objects.filter(
+                    employee=employee,
+                    start_datetime__lt=timezone.make_aware(slot_end),
+                    end_datetime__gt=timezone.make_aware(current_time)
+                ).exclude(status__in=['canceled', 'no_show']).exists()
+                
+                if not conflicts:
+                    slots.append({
+                        'start': current_time.isoformat(),
+                        'end': slot_end.isoformat(),
+                        'available': True
+                    })
+                
+                current_time = slot_end
+        
+        return Response({'slots': slots})
     
     def send_websocket_event(self, appointment, event_type):
         """

@@ -275,15 +275,31 @@ const rules = {
 
 const categoryOptions = computed(() => {
   const buildTree = (items, parentId = null) => {
-    return items
-      .filter(item => item.parent === parentId)
-      .map(item => ({
+    const filtered = items.filter(item => {
+      if (parentId === null) {
+        return item.parent === null || item.parent === undefined
+      }
+      return item.parent === parentId
+    })
+    
+    return filtered.map(item => {
+      const children = buildTree(items, item.id)
+      const option = {
         label: item.name,
-        value: item.id,
-        children: buildTree(items, item.id)
-      }))
+        value: item.id
+      }
+      if (children.length > 0) {
+        option.children = children
+      }
+      return option
+    })
   }
-  return buildTree(props.categories)
+  
+  const tree = buildTree(props.categories)
+  return tree.length > 0 ? tree : props.categories.map(item => ({
+    label: item.name,
+    value: item.id
+  }))
 })
 
 const unitOptions = [

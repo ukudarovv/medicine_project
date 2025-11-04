@@ -54,10 +54,11 @@
             block-line
             :data="categoryTree"
             :pattern="categorySearch"
-            :selected-keys="selectedCategory ? [selectedCategory] : []"
+            :selected-keys="selectedCategory ? [selectedCategory] : ['all']"
             :on-update:selected-keys="handleCategorySelect"
             :render-label="renderCategoryLabel"
             :render-suffix="renderCategorySuffix"
+            :default-expanded-keys="['all']"
           />
         </div>
       </n-layout-sider>
@@ -147,21 +148,30 @@ const exportOptions = [
 // Build category tree
 const categoryTree = computed(() => {
   const buildTree = (items, parentId = null) => {
-    return items
-      .filter(item => item.parent === parentId)
-      .map(item => ({
-        key: item.id,
-        label: item.name,
-        data: item,
-        children: buildTree(items, item.id)
-      }))
+    const filtered = items.filter(item => {
+      // Check if parent matches (null == null or id == id)
+      if (parentId === null) {
+        return item.parent === null || item.parent === undefined
+      }
+      return item.parent === parentId
+    })
+    
+    return filtered.map(item => ({
+      key: item.id,
+      label: item.name,
+      data: item,
+      children: buildTree(items, item.id)
+    }))
   }
 
+  const tree = buildTree(categories.value)
+  
   return [
     {
-      key: null,
+      key: 'all',
       label: 'Все категории',
-      children: buildTree(categories.value)
+      isLeaf: false,
+      children: tree
     }
   ]
 })
@@ -325,7 +335,13 @@ function renderCategorySuffix({ option }) {
 
 // Handlers
 function handleCategorySelect(keys) {
-  selectedCategory.value = keys[0] || null
+  const selectedKey = keys[0]
+  // If 'all' is selected, show all services
+  if (selectedKey === 'all' || !selectedKey) {
+    selectedCategory.value = null
+  } else {
+    selectedCategory.value = selectedKey
+  }
 }
 
 function handleEdit(service) {

@@ -111,14 +111,29 @@ const rules = {
 // Build tree options for parent category selection
 const categoryOptions = computed(() => {
   const buildTree = (items, parentId = null) => {
-    return items
-      .filter(item => item.parent === parentId && item.id !== props.category?.id)
-      .map(item => ({
+    const filtered = items.filter(item => {
+      // Exclude current category from being its own parent
+      if (item.id === props.category?.id) return false
+      
+      if (parentId === null) {
+        return item.parent === null || item.parent === undefined
+      }
+      return item.parent === parentId
+    })
+    
+    return filtered.map(item => {
+      const children = buildTree(items, item.id)
+      const option = {
         label: item.name,
-        value: item.id,
-        children: buildTree(items, item.id)
-      }))
+        value: item.id
+      }
+      if (children.length > 0) {
+        option.children = children
+      }
+      return option
+    })
   }
+  
   return [
     { label: 'Нет (корневая категория)', value: null },
     ...buildTree(props.categories)

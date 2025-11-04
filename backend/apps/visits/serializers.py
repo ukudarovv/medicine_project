@@ -50,7 +50,7 @@ class VisitSerializer(serializers.ModelSerializer):
     services_list = VisitServiceSerializer(many=True, read_only=True, source='services')
     prescriptions = VisitPrescriptionSerializer(many=True, read_only=True)
     resources = VisitResourceSerializer(many=True, read_only=True)
-    files = VisitFileSerializer(many=True, read_only=True)
+    # files field is added in to_representation() method to handle Sprint 2 migration
     patient_name = serializers.CharField(source='appointment.patient.full_name', read_only=True)
     employee_name = serializers.CharField(source='appointment.employee.full_name', read_only=True)
     

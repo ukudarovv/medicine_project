@@ -537,6 +537,55 @@
 
         <!-- История болезни -->
         <n-tab-pane name="history" tab="История болезни">
+          <!-- Хронические заболевания -->
+          <n-card title="Хронические заболевания" :bordered="false" style="margin-bottom: 16px">
+            <template #header-extra>
+              <n-button type="primary" size="small" @click="showDiseaseModal = true">
+                + Добавить заболевание
+              </n-button>
+            </template>
+            
+            <n-data-table
+              v-if="chronicDiseases.length > 0"
+              :columns="diseaseColumns"
+              :data="chronicDiseases"
+              :pagination="false"
+              size="small"
+            />
+            <n-empty v-else description="Список хронических заболеваний пуст">
+              <template #extra>
+                <n-button text type="primary" @click="showDiseaseModal = true">
+                  Добавить первое заболевание
+                </n-button>
+              </template>
+            </n-empty>
+          </n-card>
+
+          <!-- Диагнозы -->
+          <n-card title="Диагнозы" :bordered="false" style="margin-bottom: 16px">
+            <template #header-extra>
+              <n-button type="primary" size="small" @click="showDiagnosisModal = true">
+                + Добавить диагноз
+              </n-button>
+            </template>
+            
+            <n-data-table
+              v-if="diagnoses.length > 0"
+              :columns="diagnosisColumns"
+              :data="diagnoses"
+              :pagination="false"
+              size="small"
+            />
+            <n-empty v-else description="Список диагнозов пуст">
+              <template #extra>
+                <n-button text type="primary" @click="showDiagnosisModal = true">
+                  Добавить первый диагноз
+                </n-button>
+              </template>
+            </n-empty>
+          </n-card>
+
+          <!-- Визиты -->
           <n-card title="Визиты" :bordered="false">
             <template #header-extra>
               <n-button type="primary" size="small">

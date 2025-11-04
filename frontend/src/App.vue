@@ -2,7 +2,9 @@
   <n-config-provider :theme="darkTheme" :locale="ruRU" :date-locale="dateRuRU">
     <n-message-provider>
       <n-notification-provider>
-        <router-view />
+        <n-dialog-provider>
+          <router-view />
+        </n-dialog-provider>
       </n-notification-provider>
     </n-message-provider>
   </n-config-provider>

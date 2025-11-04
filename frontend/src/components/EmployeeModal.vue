@@ -6,6 +6,12 @@
     style="width: 900px"
     :segmented="{ content: 'soft' }"
   >
+    <!-- Sub-modals -->
+    <EmployeeServicesModal
+      v-model:show="showServicesModal"
+      :employee-id="formData.id"
+      @saved="onServicesSaved"
+    />
     <n-scrollbar style="max-height: 70vh">
       <n-form ref="formRef" :model="formData" :rules="rules" label-placement="top">
         <!-- Основная информация -->
@@ -152,6 +158,19 @@
           </n-grid-item>
         </n-grid>
 
+        <!-- Services -->
+        <n-divider title-placement="left">Услуги сотрудника</n-divider>
+        
+        <n-space vertical style="width: 100%">
+          <n-button type="primary" @click="showServicesModal = true">
+            📋 Управление услугами
+          </n-button>
+          
+          <n-text v-if="employeeServices.length > 0" type="success">
+            Привязано услуг: {{ employeeServices.length }}
+          </n-text>
+        </n-space>
+
         <!-- Роли -->
         <n-divider title-placement="left">Роли в системе</n-divider>
         
@@ -230,6 +249,7 @@ import { ref, computed, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import apiClient from '@/api/axios'
 import { useAuthStore } from '@/stores/auth'
+import EmployeeServicesModal from './EmployeeServicesModal.vue'
 
 const props = defineProps({
   show: {
@@ -248,6 +268,12 @@ const message = useMessage()
 const authStore = useAuthStore()
 const formRef = ref(null)
 const saving = ref(false)
+
+// Modal states
+const showServicesModal = ref(false)
+
+// Data lists
+const employeeServices = ref([])
 
 const isEdit = computed(() => !!props.employee)
 
@@ -400,6 +426,12 @@ function resetForm() {
 function handleClose() {
   visible.value = false
   resetForm()
+}
+
+// Handle services saved
+function onServicesSaved(services) {
+  employeeServices.value = services
+  message.success('Услуги обновлены')
 }
 
 async function handleSave(closeAfter = false) {

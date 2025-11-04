@@ -1,5 +1,9 @@
 from django.contrib import admin
-from .models import Patient, Representative, PatientFile
+from .models import (
+    Patient, Representative, PatientFile,
+    PatientPhone, PatientSocialNetwork, PatientContactPerson,
+    PatientDisease, PatientDiagnosis, PatientDoseLoad
+)
 
 
 class RepresentativeInline(admin.TabularInline):
@@ -14,6 +18,17 @@ class PatientFileInline(admin.TabularInline):
     readonly_fields = ['uploaded_by']
 
 
+class PatientPhoneInline(admin.TabularInline):
+    model = PatientPhone
+    extra = 0
+
+
+class PatientDiseaseInline(admin.TabularInline):
+    model = PatientDisease
+    extra = 0
+    raw_id_fields = ['icd_code', 'doctor']
+
+
 @admin.register(Patient)
 class PatientAdmin(admin.ModelAdmin):
     list_display = [
@@ -23,7 +38,7 @@ class PatientAdmin(admin.ModelAdmin):
     search_fields = ['first_name', 'last_name', 'phone', 'iin', 'email']
     list_filter = ['organization', 'sex', 'is_active', 'created_at']
     raw_id_fields = ['organization']
-    inlines = [RepresentativeInline, PatientFileInline]
+    inlines = [RepresentativeInline, PatientFileInline, PatientPhoneInline, PatientDiseaseInline]
     
     fieldsets = (
         ('Основная информация', {
@@ -67,3 +82,43 @@ class PatientFileAdmin(admin.ModelAdmin):
     list_filter = ['file_type', 'created_at']
     raw_id_fields = ['patient', 'uploaded_by']
 
+
+@admin.register(PatientPhone)
+class PatientPhoneAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'phone', 'phone_type', 'is_primary']
+    list_filter = ['phone_type', 'is_primary']
+    raw_id_fields = ['patient']
+
+
+@admin.register(PatientSocialNetwork)
+class PatientSocialNetworkAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'network', 'username']
+    list_filter = ['network']
+    raw_id_fields = ['patient']
+
+
+@admin.register(PatientContactPerson)
+class PatientContactPersonAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'name', 'relation', 'phone']
+    raw_id_fields = ['patient']
+
+
+@admin.register(PatientDisease)
+class PatientDiseaseAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'diagnosis', 'icd_code', 'start_date', 'doctor']
+    list_filter = ['start_date']
+    raw_id_fields = ['patient', 'icd_code', 'doctor']
+
+
+@admin.register(PatientDiagnosis)
+class PatientDiagnosisAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'diagnosis', 'icd_code', 'date', 'is_primary', 'doctor']
+    list_filter = ['date', 'is_primary']
+    raw_id_fields = ['patient', 'icd_code', 'doctor']
+
+
+@admin.register(PatientDoseLoad)
+class PatientDoseLoadAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'study_type', 'dose', 'date']
+    list_filter = ['date']
+    raw_id_fields = ['patient']

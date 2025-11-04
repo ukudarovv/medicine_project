@@ -6,6 +6,26 @@
     style="width: 1100px"
     :segmented="{ content: 'soft' }"
   >
+    <!-- Sub-modals -->
+    <RepresentativeModal
+      v-model:show="showRepresentativeModal"
+      :patient-id="formData.id"
+      @saved="onRepresentativeSaved"
+    />
+    <AddPhoneModal
+      v-model:show="showPhoneModal"
+      @saved="onPhoneSaved"
+    />
+    <AddDiseaseModal
+      v-model:show="showDiseaseModal"
+      :patient-id="formData.id"
+      @saved="onDiseaseSaved"
+    />
+    <AddDiagnosisModal
+      v-model:show="showDiagnosisModal"
+      :patient-id="formData.id"
+      @saved="onDiagnosisSaved"
+    />
     <n-scrollbar style="max-height: 75vh">
       <!-- Tabs -->
       <n-tabs v-model:value="activeTab" type="line" animated>
@@ -91,13 +111,30 @@
                 />
               </n-form-item>
 
-              <n-space>
-                <n-button text type="primary">
-                  Категория
-                </n-button>
-                <n-button text type="primary">
-                  + Добавить представителя
-                </n-button>
+              <n-space vertical style="width: 100%">
+                <n-space>
+                  <n-button text type="primary">
+                    Категория
+                  </n-button>
+                  <n-button text type="primary" @click="showRepresentativeModal = true">
+                    + Добавить представителя
+                  </n-button>
+                </n-space>
+                
+                <!-- Representatives list -->
+                <n-list v-if="representatives.length > 0" bordered>
+                  <n-list-item v-for="(rep, idx) in representatives" :key="idx">
+                    <n-space justify="space-between" style="width: 100%">
+                      <div>
+                        <strong>{{ rep.last_name }} {{ rep.first_name }} {{ rep.middle_name }}</strong>
+                        - {{ rep.relation }} | {{ rep.phone }}
+                      </div>
+                      <n-button size="small" type="error" @click="removeRepresentative(idx)">
+                        🗑️
+                      </n-button>
+                    </n-space>
+                  </n-list-item>
+                </n-list>
               </n-space>
             </n-card>
 
@@ -107,9 +144,27 @@
                 <n-form-item label="Телефон" path="phone">
                   <n-space>
                     <n-input v-model:value="formData.phone" placeholder="Телефон" style="width: 250px" />
-                    <n-button text type="primary">+ Телефон</n-button>
+                    <n-button text type="primary" @click="showPhoneModal = true">+ Телефон</n-button>
                   </n-space>
                 </n-form-item>
+
+                <!-- Additional phones list -->
+                <n-list v-if="additionalPhones.length > 0" bordered size="small">
+                  <n-list-item v-for="(phone, idx) in additionalPhones" :key="idx">
+                    <n-space justify="space-between" style="width: 100%">
+                      <div>
+                        <strong>{{ phone.phone }}</strong> ({{ phone.type }})
+                        <n-tag v-if="phone.is_primary" type="success" size="small" style="margin-left: 8px">
+                          Основной
+                        </n-tag>
+                        <span v-if="phone.note"> - {{ phone.note }}</span>
+                      </div>
+                      <n-button size="small" type="error" @click="removePhone(idx)">
+                        🗑️
+                      </n-button>
+                    </n-space>
+                  </n-list-item>
+                </n-list>
 
                 <n-form-item label="MAX" help="Идентификатор MAX">
                   <n-input v-model:value="formData.max_id" placeholder="MAX ID" style="width: 250px" />
@@ -394,6 +449,40 @@
               </n-space>
             </n-card>
 
+            <!-- Chronic Diseases -->
+            <n-card title="Хронические заболевания" :bordered="false" style="margin-top: 16px">
+              <n-space vertical style="width: 100%">
+                <n-button type="primary" @click="showDiseaseModal = true">
+                  + Добавить заболевание
+                </n-button>
+
+                <n-data-table
+                  v-if="chronicDiseases.length > 0"
+                  :columns="diseaseColumns"
+                  :data="chronicDiseases"
+                  :pagination="false"
+                  size="small"
+                />
+              </n-space>
+            </n-card>
+
+            <!-- Diagnoses -->
+            <n-card title="Диагнозы" :bordered="false" style="margin-top: 16px">
+              <n-space vertical style="width: 100%">
+                <n-button type="primary" @click="showDiagnosisModal = true">
+                  + Добавить диагноз
+                </n-button>
+
+                <n-data-table
+                  v-if="diagnoses.length > 0"
+                  :columns="diagnosisColumns"
+                  :data="diagnoses"
+                  :pagination="false"
+                  size="small"
+                />
+              </n-space>
+            </n-card>
+
             <!-- Анамнез -->
             <n-card title="Анамнез" :bordered="false" style="margin-top: 16px">
               <n-space vertical size="large">
@@ -509,10 +598,14 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useMessage } from 'naive-ui'
+import { ref, computed, watch, h } from 'vue'
+import { useMessage, NButton } from 'naive-ui'
 import apiClient from '@/api/axios'
 import { useAuthStore } from '@/stores/auth'
+import RepresentativeModal from './RepresentativeModal.vue'
+import AddPhoneModal from './AddPhoneModal.vue'
+import AddDiseaseModal from './AddDiseaseModal.vue'
+import AddDiagnosisModal from './AddDiagnosisModal.vue'
 
 const props = defineProps({
   show: {
@@ -533,6 +626,18 @@ const formRef = ref(null)
 const saving = ref(false)
 const activeTab = ref('general')
 
+// Modal states
+const showRepresentativeModal = ref(false)
+const showPhoneModal = ref(false)
+const showDiseaseModal = ref(false)
+const showDiagnosisModal = ref(false)
+
+// Data lists
+const representatives = ref([])
+const additionalPhones = ref([])
+const chronicDiseases = ref([])
+const diagnoses = ref([])
+
 const isEdit = computed(() => !!props.patient)
 
 const visible = computed({
@@ -547,22 +652,46 @@ const currentDate = computed(() => {
 
 // Table columns for diseases
 const diseaseColumns = [
-  { title: 'Дата начала наблюдения', key: 'start_date', width: 150 },
-  { title: 'Дата прекращения наблюдения', key: 'end_date', width: 150 },
+  { title: 'Дата начала наблюдения', key: 'start_date', width: 150, render: (row) => row.start_date ? new Date(row.start_date).toLocaleDateString('ru-RU') : '' },
+  { title: 'Дата прекращения наблюдения', key: 'end_date', width: 150, render: (row) => row.end_date ? new Date(row.end_date).toLocaleDateString('ru-RU') : '' },
   { title: 'Диагноз', key: 'diagnosis' },
   { title: 'Код МКБ', key: 'icd_code', width: 100 },
-  { title: 'Врач', key: 'doctor', width: 200 }
+  { title: 'Врач', key: 'doctor', width: 200 },
+  {
+    title: 'Действия',
+    key: 'actions',
+    width: 80,
+    render: (row, index) => {
+      return h(NButton, {
+        size: 'small',
+        type: 'error',
+        onClick: () => removeDisease(index)
+      }, { default: () => '🗑️' })
+    }
+  }
 ]
 
 // Table columns for diagnoses
 const diagnosisColumns = [
-  { title: 'Дата', key: 'date', width: 120 },
+  { title: 'Дата', key: 'date', width: 120, render: (row) => row.date ? new Date(row.date).toLocaleDateString('ru-RU') : '' },
   { title: 'Заключительные (уточненные) диагнозы', key: 'diagnosis' },
   { title: 'Код МКБ', key: 'icd_code', width: 100 },
   { title: 'Первичный - 1, Повторный - 2', key: 'type', width: 150 },
   { title: 'ФИО врача', key: 'doctor', width: 200 },
   { title: 'Должность', key: 'position', width: 150 },
-  { title: 'Специальность', key: 'specialty', width: 150 }
+  { title: 'Специальность', key: 'specialty', width: 150 },
+  {
+    title: 'Действия',
+    key: 'actions',
+    width: 80,
+    render: (row, index) => {
+      return h(NButton, {
+        size: 'small',
+        type: 'error',
+        onClick: () => removeDiagnosis(index)
+      }, { default: () => '🗑️' })
+    }
+  }
 ]
 
 // Table columns for dose tracking
@@ -880,6 +1009,42 @@ function resetForm() {
 function handleClose() {
   visible.value = false
   resetForm()
+}
+
+// Handle representative saved
+function onRepresentativeSaved(data) {
+  representatives.value.push(data)
+}
+
+function removeRepresentative(index) {
+  representatives.value.splice(index, 1)
+}
+
+// Handle phone saved
+function onPhoneSaved(data) {
+  additionalPhones.value.push(data)
+}
+
+function removePhone(index) {
+  additionalPhones.value.splice(index, 1)
+}
+
+// Handle disease saved
+function onDiseaseSaved(data) {
+  chronicDiseases.value.push(data)
+}
+
+function removeDisease(index) {
+  chronicDiseases.value.splice(index, 1)
+}
+
+// Handle diagnosis saved
+function onDiagnosisSaved(data) {
+  diagnoses.value.push(data)
+}
+
+function removeDiagnosis(index) {
+  diagnoses.value.splice(index, 1)
 }
 
 async function handleSave(closeAfter = false) {

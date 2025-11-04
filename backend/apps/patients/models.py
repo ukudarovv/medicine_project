@@ -144,6 +144,174 @@ class Representative(models.Model):
         return ' '.join(parts)
 
 
+class PatientPhone(models.Model):
+    """
+    Additional patient phones
+    """
+    PHONE_TYPES = [
+        ('mobile', 'Мобильный'),
+        ('home', 'Домашний'),
+        ('work', 'Рабочий'),
+        ('other', 'Другой'),
+    ]
+    
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='additional_phones'
+    )
+    phone = models.CharField(max_length=20)
+    type = models.CharField(max_length=20, choices=PHONE_TYPES, default='mobile')
+    note = models.CharField(max_length=200, blank=True)
+    is_primary = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_phones'
+        verbose_name = 'Patient Phone'
+        verbose_name_plural = 'Patient Phones'
+    
+    def __str__(self):
+        return f"{self.phone} ({self.get_type_display()}) - {self.patient.full_name}"
+
+
+class PatientSocialNetwork(models.Model):
+    """
+    Patient social networks
+    """
+    NETWORK_TYPES = [
+        ('whatsapp', 'WhatsApp'),
+        ('telegram', 'Telegram'),
+        ('instagram', 'Instagram'),
+        ('facebook', 'Facebook'),
+        ('vk', 'VKontakte'),
+        ('other', 'Другое'),
+    ]
+    
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='social_networks'
+    )
+    network = models.CharField(max_length=20, choices=NETWORK_TYPES)
+    username = models.CharField(max_length=200)
+    url = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_social_networks'
+        verbose_name = 'Patient Social Network'
+        verbose_name_plural = 'Patient Social Networks'
+    
+    def __str__(self):
+        return f"{self.get_network_display()}: {self.username} - {self.patient.full_name}"
+
+
+class PatientContactPerson(models.Model):
+    """
+    Patient contact person (emergency contact)
+    """
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='contact_persons'
+    )
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    relation = models.CharField(max_length=100, help_text='Степень родства')
+    phone = models.CharField(max_length=20)
+    email = models.EmailField(blank=True)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_contact_persons'
+        verbose_name = 'Patient Contact Person'
+        verbose_name_plural = 'Patient Contact Persons'
+    
+    def __str__(self):
+        return f"{self.last_name} {self.first_name} ({self.relation}) - {self.patient.full_name}"
+
+
+class PatientDisease(models.Model):
+    """
+    Patient dispensary diseases
+    """
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='diseases'
+    )
+    start_date = models.DateField(help_text='Дата начала наблюдения')
+    end_date = models.DateField(null=True, blank=True, help_text='Дата прекращения наблюдения')
+    diagnosis = models.TextField(help_text='Диагноз')
+    icd_code = models.ForeignKey(
+        'services.ICDCode',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    doctor = models.ForeignKey(
+        'staff.Employee',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_diseases'
+        verbose_name = 'Patient Disease'
+        verbose_name_plural = 'Patient Diseases'
+        ordering = ['-start_date']
+    
+    def __str__(self):
+        return f"{self.diagnosis} - {self.patient.full_name}"
+
+
+class PatientDiagnosis(models.Model):
+    """
+    Final (clarified) diagnoses
+    """
+    DIAGNOSIS_TYPES = [
+        ('1', 'Первичный'),
+        ('2', 'Повторный'),
+    ]
+    
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='diagnoses'
+    )
+    date = models.DateField()
+    diagnosis = models.TextField(help_text='Заключительный диагноз')
+    icd_code = models.ForeignKey(
+        'services.ICDCode',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    type = models.CharField(max_length=1, choices=DIAGNOSIS_TYPES, default='1')
+    doctor = models.ForeignKey(
+        'staff.Employee',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='patient_diagnoses'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_diagnoses'
+        verbose_name = 'Patient Diagnosis'
+        verbose_name_plural = 'Patient Diagnoses'
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"{self.diagnosis} ({self.date}) - {self.patient.full_name}"
+
+
 class PatientFile(models.Model):
     """
     Patient files (medical records, images, etc.)
@@ -182,4 +350,123 @@ class PatientFile(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.patient.full_name}"
+
+
+class PatientPhone(models.Model):
+    """
+    Multiple phones for patient
+    """
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='phones')
+    phone = models.CharField(max_length=20)
+    phone_type = models.CharField(max_length=20, choices=[
+        ('mobile', 'Мобильный'),
+        ('home', 'Домашний'),
+        ('work', 'Рабочий'),
+    ], default='mobile')
+    is_primary = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_phones'
+    
+    def __str__(self):
+        return f"{self.phone} ({self.get_phone_type_display()})"
+
+
+class PatientSocialNetwork(models.Model):
+    """
+    Patient social networks
+    """
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='social_networks')
+    network = models.CharField(max_length=50, choices=[
+        ('instagram', 'Instagram'),
+        ('facebook', 'Facebook'),
+        ('vk', 'VKontakte'),
+        ('whatsapp', 'WhatsApp'),
+        ('telegram', 'Telegram'),
+    ])
+    username = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_social_networks'
+    
+    def __str__(self):
+        return f"{self.network}: {self.username}"
+
+
+class PatientContactPerson(models.Model):
+    """
+    Emergency contact person
+    """
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='contact_persons')
+    name = models.CharField(max_length=200)
+    relation = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_contact_persons'
+    
+    def __str__(self):
+        return f"{self.name} ({self.relation})"
+
+
+class PatientDisease(models.Model):
+    """
+    Dispensary observation diseases
+    """
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='diseases')
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    diagnosis = models.TextField()
+    icd_code = models.ForeignKey('services.ICDCode', on_delete=models.SET_NULL, null=True, blank=True)
+    doctor = models.ForeignKey('staff.Employee', on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_diseases'
+        ordering = ['-start_date']
+    
+    def __str__(self):
+        return f"{self.diagnosis} - {self.patient.full_name}"
+
+
+class PatientDiagnosis(models.Model):
+    """
+    Final/clarified diagnoses
+    """
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='diagnoses')
+    date = models.DateField()
+    diagnosis = models.TextField()
+    icd_code = models.ForeignKey('services.ICDCode', on_delete=models.SET_NULL, null=True, blank=True)
+    is_primary = models.BooleanField(default=True, help_text='Первичный - True, Повторный - False')
+    doctor = models.ForeignKey('staff.Employee', on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_diagnoses'
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"{self.diagnosis} - {self.date}"
+
+
+class PatientDoseLoad(models.Model):
+    """
+    Radiation dose tracking
+    """
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='dose_loads')
+    date = models.DateField()
+    study_type = models.CharField(max_length=200, help_text='Вид исследования')
+    dose = models.DecimalField(max_digits=10, decimal_places=2, help_text='Эффективная доза, мЗв')
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_dose_loads'
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"{self.study_type} - {self.dose} мЗв"
 

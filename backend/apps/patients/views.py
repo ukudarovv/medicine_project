@@ -2,14 +2,25 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db import models
 from apps.core.permissions import IsBranchMember, CanAccessPatient
-from .models import Patient, Representative, PatientFile
+from .models import (
+    Patient, Representative, PatientFile,
+    PatientPhone, PatientSocialNetwork, PatientContactPerson,
+    PatientDisease, PatientDiagnosis, PatientDoseLoad
+)
 from .serializers import (
     PatientSerializer,
     PatientListSerializer,
     PatientSearchSerializer,
     RepresentativeSerializer,
-    PatientFileSerializer
+    PatientFileSerializer,
+    PatientPhoneSerializer,
+    PatientSocialNetworkSerializer,
+    PatientContactPersonSerializer,
+    PatientDiseaseSerializer,
+    PatientDiagnosisSerializer,
+    PatientDoseLoadSerializer
 )
 import re
 
@@ -42,7 +53,8 @@ class PatientViewSet(viewsets.ModelViewSet):
             )
         
         return queryset.select_related('organization').prefetch_related(
-            'representatives', 'files'
+            'representatives', 'files', 'phones', 'social_networks',
+            'contact_persons', 'diseases', 'diagnoses', 'dose_loads'
         )
     
     def get_serializer_class(self):
@@ -59,11 +71,6 @@ class PatientViewSet(viewsets.ModelViewSet):
     def search(self, request):
         """
         Search for patients by phone or IIN (for deduplication)
-        POST /api/v1/patients/search
-        {
-            "phone": "+77001234567",
-            "iin": "123456789012"
-        }
         """
         serializer = PatientSearchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -73,18 +80,14 @@ class PatientViewSet(viewsets.ModelViewSet):
         
         queryset = Patient.objects.filter(organization=request.user.organization)
         
-        # Search by phone (normalized)
         if phone:
             normalized = re.sub(r'\D', '', phone)
-            queryset = queryset.filter(
-                phone__iregex=f'[^0-9]*{normalized}[^0-9]*'
-            )
+            queryset = queryset.filter(phone__iregex=f'[^0-9]*{normalized}[^0-9]*')
         
-        # Search by IIN
         if iin:
             queryset = queryset.filter(iin=iin)
         
-        patients = queryset[:10]  # Limit to 10 results
+        patients = queryset[:10]
         serializer = PatientListSerializer(patients, many=True)
         
         return Response({
@@ -102,18 +105,12 @@ class PatientViewSet(viewsets.ModelViewSet):
         amount = request.data.get('amount')
         
         if not amount:
-            return Response(
-                {'error': 'Amount is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'Amount is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             amount = float(amount)
         except ValueError:
-            return Response(
-                {'error': 'Invalid amount'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
         
         patient.balance += amount
         patient.save(update_fields=['balance'])
@@ -125,9 +122,6 @@ class PatientViewSet(viewsets.ModelViewSet):
 
 
 class RepresentativeViewSet(viewsets.ModelViewSet):
-    """
-    Patient representative CRUD
-    """
     queryset = Representative.objects.all()
     serializer_class = RepresentativeSerializer
     permission_classes = [IsAuthenticated, IsBranchMember]
@@ -135,21 +129,13 @@ class RepresentativeViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         patient_id = self.request.query_params.get('patient')
-        
-        queryset = Representative.objects.filter(
-            patient__organization=user.organization
-        )
-        
+        queryset = Representative.objects.filter(patient__organization=user.organization)
         if patient_id:
             queryset = queryset.filter(patient_id=patient_id)
-        
         return queryset
 
 
 class PatientFileViewSet(viewsets.ModelViewSet):
-    """
-    Patient file CRUD
-    """
     queryset = PatientFile.objects.all()
     serializer_class = PatientFileSerializer
     permission_classes = [IsAuthenticated, IsBranchMember]
@@ -157,16 +143,94 @@ class PatientFileViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         patient_id = self.request.query_params.get('patient')
-        
-        queryset = PatientFile.objects.filter(
-            patient__organization=user.organization
-        )
-        
+        queryset = PatientFile.objects.filter(patient__organization=user.organization)
         if patient_id:
             queryset = queryset.filter(patient_id=patient_id)
-        
         return queryset
     
     def perform_create(self, serializer):
         serializer.save(uploaded_by=self.request.user)
 
+
+class PatientPhoneViewSet(viewsets.ModelViewSet):
+    queryset = PatientPhone.objects.all()
+    serializer_class = PatientPhoneSerializer
+    permission_classes = [IsAuthenticated, IsBranchMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        patient_id = self.request.query_params.get('patient')
+        queryset = PatientPhone.objects.filter(patient__organization=user.organization)
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        return queryset
+
+
+class PatientSocialNetworkViewSet(viewsets.ModelViewSet):
+    queryset = PatientSocialNetwork.objects.all()
+    serializer_class = PatientSocialNetworkSerializer
+    permission_classes = [IsAuthenticated, IsBranchMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        patient_id = self.request.query_params.get('patient')
+        queryset = PatientSocialNetwork.objects.filter(patient__organization=user.organization)
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        return queryset
+
+
+class PatientContactPersonViewSet(viewsets.ModelViewSet):
+    queryset = PatientContactPerson.objects.all()
+    serializer_class = PatientContactPersonSerializer
+    permission_classes = [IsAuthenticated, IsBranchMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        patient_id = self.request.query_params.get('patient')
+        queryset = PatientContactPerson.objects.filter(patient__organization=user.organization)
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        return queryset
+
+
+class PatientDiseaseViewSet(viewsets.ModelViewSet):
+    queryset = PatientDisease.objects.all()
+    serializer_class = PatientDiseaseSerializer
+    permission_classes = [IsAuthenticated, IsBranchMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        patient_id = self.request.query_params.get('patient')
+        queryset = PatientDisease.objects.filter(patient__organization=user.organization)
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        return queryset.select_related('icd_code', 'doctor')
+
+
+class PatientDiagnosisViewSet(viewsets.ModelViewSet):
+    queryset = PatientDiagnosis.objects.all()
+    serializer_class = PatientDiagnosisSerializer
+    permission_classes = [IsAuthenticated, IsBranchMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        patient_id = self.request.query_params.get('patient')
+        queryset = PatientDiagnosis.objects.filter(patient__organization=user.organization)
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        return queryset.select_related('icd_code', 'doctor')
+
+
+class PatientDoseLoadViewSet(viewsets.ModelViewSet):
+    queryset = PatientDoseLoad.objects.all()
+    serializer_class = PatientDoseLoadSerializer
+    permission_classes = [IsAuthenticated, IsBranchMember]
+    
+    def get_queryset(self):
+        user = self.request.user
+        patient_id = self.request.query_params.get('patient')
+        queryset = PatientDoseLoad.objects.filter(patient__organization=user.organization)
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        return queryset

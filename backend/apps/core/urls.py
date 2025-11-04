@@ -9,10 +9,10 @@ from .views import (
 )
 
 urlpatterns = [
-    path('login', LoginView.as_view(), name='login'),
-    path('refresh', TokenRefreshView.as_view(), name='token_refresh'),
-    path('me', MeView.as_view(), name='me'),
-    path('2fa/enable', Enable2FAView.as_view(), name='2fa_enable'),
-    path('2fa/verify', Verify2FAView.as_view(), name='2fa_verify'),
-    path('2fa/disable', Disable2FAView.as_view(), name='2fa_disable'),
+    path('login/', LoginView.as_view(), name='login'),
+    path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('me/', MeView.as_view(), name='me'),
+    path('2fa/enable/', Enable2FAView.as_view(), name='2fa_enable'),
+    path('2fa/verify/', Verify2FAView.as_view(), name='2fa_verify'),
+    path('2fa/disable/', Disable2FAView.as_view(), name='2fa_disable'),
 ]

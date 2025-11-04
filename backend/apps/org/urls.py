@@ -18,5 +18,5 @@ router.register('settings', SettingsViewSet, basename='settings')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('clinic-info', ClinicInfoView.as_view(), name='clinic_info'),
+    path('clinic-info/', ClinicInfoView.as_view(), name='clinic_info'),
 ]

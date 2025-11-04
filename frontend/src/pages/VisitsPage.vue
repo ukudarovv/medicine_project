@@ -1,5 +1,11 @@
 <template>
   <div class="visits-page">
+    <!-- Модальное окно визита -->
+    <VisitModal
+      v-model:show="showVisitModal"
+      :visit-id="selectedVisitId"
+    />
+
     <n-page-header title="Журнал визитов">
       <template #extra>
         <n-space>
@@ -40,12 +46,17 @@ import { ref, computed, onMounted, h } from 'vue'
 import { NButton, NTag, useMessage } from 'naive-ui'
 import apiClient from '@/api/axios'
 import { format, parseISO } from 'date-fns'
+import VisitModal from '@/components/VisitModal.vue'
 
 const message = useMessage()
 const visits = ref([])
 const loading = ref(false)
 const dateRange = ref(null)
 const statusFilter = ref(null)
+
+// Модальное окно
+const showVisitModal = ref(false)
+const selectedVisitId = ref(null)
 
 const pagination = {
   page: 1,
@@ -147,8 +158,8 @@ async function loadVisits() {
 }
 
 function openVisit(visit) {
-  message.info(`Открыть визит #${visit.id}`)
-  // TODO: Navigate to visit details
+  selectedVisitId.value = visit.id
+  showVisitModal.value = true
 }
 
 onMounted(() => {

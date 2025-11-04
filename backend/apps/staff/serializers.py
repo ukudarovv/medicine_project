@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Employee, EmployeeBranch, EmployeeService
 from apps.core.serializers import UserSerializer
+from apps.core.models import User
 
 
 class EmployeeBranchSerializer(serializers.ModelSerializer):

@@ -423,28 +423,32 @@ async function handleSave(closeAfter = false) {
     const data = {
       organization: formData.value.organization || authStore.user?.organization,
       category: formData.value.category,
-      code: formData.value.code,
+      code: formData.value.code || `SVC${Date.now()}`, // Generate code if empty
       name: formData.value.name,
-      print_name: formData.value.print_name,
       description: formData.value.description,
-      nomenclature_code: formData.value.nomenclature_code,
-      tax_code: formData.value.tax_code,
       unit: formData.value.unit,
       base_price: formData.value.base_price,
       price_min: priceType.value === 'range' ? formData.value.price_min : null,
       price_max: priceType.value === 'range' ? formData.value.price_max : null,
       vat_rate: formData.value.vat_rate,
-      duration: formData.value.duration,
-      notes: formData.value.notes,
+      default_duration: formData.value.duration,
       color: formData.value.color,
       is_expensive: formData.value.is_expensive
     }
+    
+    // Add optional fields only if they have values
+    if (formData.value.notes) {
+      data.notes = formData.value.notes
+    }
+
+    console.log('Sending service data:', data)
 
     if (isEdit.value) {
       await apiClient.patch(`/services/services/${props.service.id}`, data)
       message.success('Услуга обновлена')
     } else {
-      await apiClient.post('/services/services', data)
+      const response = await apiClient.post('/services/services', data)
+      console.log('Service created:', response.data)
       message.success('Услуга создана')
     }
 
@@ -456,7 +460,18 @@ async function handleSave(closeAfter = false) {
     }
   } catch (error) {
     console.error('Error saving service:', error)
-    message.error('Ошибка сохранения услуги')
+    console.error('Error response:', error.response?.data)
+    
+    if (error.response?.data) {
+      const errors = error.response.data
+      let errorMessage = 'Ошибка сохранения услуги:\n'
+      Object.keys(errors).forEach(key => {
+        errorMessage += `${key}: ${errors[key]}\n`
+      })
+      message.error(errorMessage)
+    } else {
+      message.error('Ошибка сохранения услуги')
+    }
   } finally {
     saving.value = false
   }

@@ -1,0 +1,52 @@
+// Colors - Dark Theme
+$bg-primary: #121212;
+$bg-secondary: #1E1E1E;
+$bg-tertiary: #2A2A2A;
+
+$text-primary: #FFFFFF;
+$text-secondary: #A0A0A0;
+$text-disabled: #666666;
+
+$primary-color: #FF6A3D;
+$secondary-color: #00C2A8;
+
+$border-color: #3A3A3A;
+$divider-color: #2A2A2A;
+
+// Status Colors
+$status-draft: #9E9E9E;
+$status-booked: #2196F3;
+$status-confirmed: #00C2A8;
+$status-in-progress: #FF9800;
+$status-done: #4CAF50;
+$status-no-show: #F44336;
+$status-canceled: #FFCDD2;
+
+// Spacing
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-2xl: 48px;
+
+// Border Radius
+$radius-sm: 4px;
+$radius-md: 8px;
+$radius-lg: 12px;
+
+// Shadows
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+$shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.5);
+
+// Z-index
+$z-dropdown: 1000;
+$z-modal: 1100;
+$z-tooltip: 1200;
+
+// Transitions
+$transition-fast: 150ms ease;
+$transition-base: 300ms ease;
+$transition-slow: 500ms ease;
+

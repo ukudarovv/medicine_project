@@ -82,12 +82,12 @@ class ServiceListSerializer(serializers.ModelSerializer):
     """
     Simplified service serializer for lists
     """
-    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
     
     class Meta:
         model = Service
         fields = [
-            'id', 'code', 'name', 'category_name',
+            'id', 'category', 'code', 'name', 'category_name',
             'base_price', 'unit', 'default_duration', 'color', 'is_active'
         ]
 

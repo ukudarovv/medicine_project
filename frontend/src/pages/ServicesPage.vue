@@ -404,6 +404,7 @@ async function loadData() {
       sampleService: services.value[0],
       sampleCategory: categories.value[0]
     })
+    console.log('First 3 services full data:', services.value.slice(0, 3))
   } catch (error) {
     console.error('Error loading data:', error)
     message.error('Ошибка загрузки данных')

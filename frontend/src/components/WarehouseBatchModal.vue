@@ -6,6 +6,15 @@
     style="width: 600px"
     :segmented="{ content: 'soft', footer: 'soft' }"
   >
+    <n-alert 
+      v-if="warehouseOptions.length === 0 && !loadingWarehouses"
+      type="warning" 
+      title="Внимание"
+      style="margin-bottom: 16px"
+    >
+      Нет доступных складов. Пожалуйста, создайте склад на вкладке "Склады" перед добавлением партии товара.
+    </n-alert>
+    
     <n-form
       ref="formRef"
       :model="formData"
@@ -27,8 +36,9 @@
         <n-select
           v-model:value="formData.warehouse"
           :options="warehouseOptions"
-          placeholder="Выберите склад"
+          :placeholder="warehouseOptions.length === 0 ? 'Нет доступных складов' : 'Выберите склад'"
           :loading="loadingWarehouses"
+          :disabled="warehouseOptions.length === 0"
         />
       </n-form-item>
 
@@ -67,6 +77,7 @@
           type="primary"
           :loading="loading"
           @click="handleSubmit"
+          :disabled="warehouseOptions.length === 0"
         >
           {{ isEdit ? 'Сохранить' : 'Добавить' }}
         </n-button>
@@ -145,18 +156,30 @@ const loadStockItems = async () => {
 const loadWarehouses = async () => {
   try {
     loadingWarehouses.value = true
-    const response = await warehouseAPI.getWarehouses({ is_active: true })
+    // Загружаем ВСЕ склады (убрали фильтр is_active для отладки)
+    const response = await warehouseAPI.getWarehouses()
+    console.log('Warehouses API response:', response.data)
+    
     // Handle both paginated and non-paginated responses
     const warehouses = Array.isArray(response.data) 
       ? response.data 
       : (response.data.results || [])
+    
+    console.log('Parsed warehouses:', warehouses)
+    
     warehouseOptions.value = warehouses.map(wh => ({
       label: wh.name,
       value: wh.id
     }))
+    
+    console.log('Warehouse options:', warehouseOptions.value)
+    
+    if (warehouseOptions.value.length === 0) {
+      message.warning('Нет доступных складов. Создайте склад на вкладке "Склады".')
+    }
   } catch (error) {
     console.error('Error loading warehouses:', error)
-    message.error('Ошибка загрузки складов')
+    message.error('Ошибка загрузки складов: ' + (error.response?.data?.detail || error.message))
   } finally {
     loadingWarehouses.value = false
   }

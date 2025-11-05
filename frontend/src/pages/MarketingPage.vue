@@ -62,10 +62,10 @@
             <tr v-if="loading">
               <td colspan="9" class="loading-cell">Загрузка...</td>
             </tr>
-            <tr v-else-if="reminders.length === 0">
+            <tr v-else-if="validReminders.length === 0">
               <td colspan="9" class="empty-cell">Нет данных</td>
             </tr>
-            <tr v-else v-for="reminder in reminders" :key="reminder.id">
+            <tr v-else v-for="reminder in validReminders" :key="reminder.id">
               <td class="name-cell">
                 {{ reminder.name }}
                 <small v-if="reminder.link_service_name">
@@ -150,10 +150,10 @@
             <tr v-if="campaignsLoading">
               <td colspan="10" class="loading-cell">Загрузка...</td>
             </tr>
-            <tr v-else-if="campaigns.length === 0">
+            <tr v-else-if="validCampaigns.length === 0">
               <td colspan="10" class="empty-cell">Нет данных</td>
             </tr>
-            <tr v-else v-for="campaign in campaigns" :key="campaign.id">
+            <tr v-else v-for="campaign in validCampaigns" :key="campaign.id">
               <td class="name-cell">{{ campaign.title }}</td>
               <td>
                 <span class="status-badge" :class="campaign.status">
@@ -274,6 +274,14 @@ export default {
         status: '',
       },
     }
+  },
+  computed: {
+    validReminders() {
+      return this.reminders.filter(r => r && r.id)
+    },
+    validCampaigns() {
+      return this.campaigns.filter(c => c && c.id)
+    },
   },
   mounted() {
     this.loadReminders()

@@ -52,5 +52,22 @@ app.conf.beat_schedule = {
         'task': 'apps.comms.tasks.run_scheduled_campaigns',
         'schedule': crontab(minute='*/1'),  # Every minute
     },
+    # Telegram Bot tasks
+    'bot-send-appointment-reminders': {
+        'task': 'apps.telegram_bot.tasks.send_appointment_reminders',
+        'schedule': crontab(minute='*/15'),  # Every 15 minutes
+    },
+    'bot-send-arrived-check': {
+        'task': 'apps.telegram_bot.tasks.send_arrived_check',
+        'schedule': crontab(minute='*/5'),  # Every 5 minutes
+    },
+    'bot-send-feedback-request': {
+        'task': 'apps.telegram_bot.tasks.send_feedback_request',
+        'schedule': crontab(minute='*/30'),  # Every 30 minutes
+    },
+    'bot-cleanup-expired-documents': {
+        'task': 'apps.telegram_bot.tasks.cleanup_expired_documents',
+        'schedule': crontab(hour='*/6', minute='0'),  # Every 6 hours
+    },
 }
 

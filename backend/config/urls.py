@@ -22,6 +22,8 @@ urlpatterns = [
         path('comms/', include('apps.comms.urls')),
         path('reports/', include('apps.reports.urls')),
     ])),
+    # Telegram Bot API (separate from v1 for security)
+    path('api/bot/', include('apps.telegram_bot.urls')),
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),

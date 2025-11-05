@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'apps.warehouse',
     'apps.comms',
     'apps.reports',
+    'apps.telegram_bot',
 ]
 
 MIDDLEWARE = [
@@ -256,4 +257,10 @@ LOGGING = {
 # Create logs directory if it doesn't exist
 LOGS_DIR = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
+
+# ==================== Telegram Bot Settings ====================
+
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_BOT_API_SECRET = os.environ.get('TELEGRAM_BOT_API_SECRET', 'change-this-secret-in-production')
+TELEGRAM_WEBHOOK_URL = os.environ.get('TELEGRAM_WEBHOOK_URL', '')
 

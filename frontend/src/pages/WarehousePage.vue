@@ -514,7 +514,7 @@ const loadStockItems = async () => {
       is_active: filterActive.value !== null ? filterActive.value : undefined
     }
     const response = await warehouseAPI.getStockItems(params)
-    items.value = response.data
+    items.value = response.data.results || response.data
     
     if (filterLowStock.value) {
       items.value = items.value.filter(item => item.low_stock)
@@ -535,7 +535,7 @@ const loadBatches = async () => {
       expired: filterExpired.value || undefined
     }
     const response = await warehouseAPI.getStockBatches(params)
-    batches.value = response.data
+    batches.value = response.data.results || response.data
   } catch (error) {
     message.error('Ошибка загрузки партий')
   } finally {
@@ -550,7 +550,7 @@ const loadMoves = async () => {
       type: filterMoveType.value || undefined
     }
     const response = await warehouseAPI.getStockMoves(params)
-    movements.value = response.data
+    movements.value = response.data.results || response.data
   } catch (error) {
     message.error('Ошибка загрузки движений')
   } finally {
@@ -562,7 +562,7 @@ const loadInventory = async () => {
   try {
     loadingInventory.value = true
     const response = await warehouseAPI.getInventory()
-    inventory.value = response.data
+    inventory.value = response.data.results || response.data
   } catch (error) {
     message.error('Ошибка загрузки остатков')
   } finally {
@@ -574,7 +574,7 @@ const loadWarehouses = async () => {
   try {
     loadingWarehouses.value = true
     const response = await warehouseAPI.getWarehouses()
-    warehouses.value = response.data
+    warehouses.value = response.data.results || response.data
   } catch (error) {
     message.error('Ошибка загрузки складов')
   } finally {
@@ -589,12 +589,14 @@ const loadFilterOptions = async () => {
       warehouseAPI.getStockItemsSimple()
     ])
     
-    warehouseFilterOptions.value = whResponse.data.map(wh => ({
+    const warehouses = whResponse.data.results || whResponse.data
+    warehouseFilterOptions.value = warehouses.map(wh => ({
       label: wh.name,
       value: wh.id
     }))
     
-    stockItemFilterOptions.value = itemsResponse.data.map(item => ({
+    const items = itemsResponse.data.results || itemsResponse.data
+    stockItemFilterOptions.value = items.map(item => ({
       label: `${item.name} (${item.unit})`,
       value: item.id
     }))

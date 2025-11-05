@@ -821,6 +821,16 @@ const insuranceOrgOptions = [
   { label: 'Казмед МС', value: 'kazmed' }
 ]
 
+const osmsCategoryOptions = [
+  { label: 'Не указано', value: '' },
+  { label: 'Наемный работник', value: 'employee' },
+  { label: 'ИП/Самозанятый', value: 'self_employed' },
+  { label: 'Социально уязвимый', value: 'socially_vulnerable' },
+  { label: 'Бюджетник', value: 'civil_servant' },
+  { label: 'Пенсионер', value: 'pensioner' },
+  { label: 'Другое', value: 'other' }
+]
+
 const citizenshipOptions = [
   { label: 'Казахстан', value: 'KZ' },
   { label: 'Россия', value: 'RU' },

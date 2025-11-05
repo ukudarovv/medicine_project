@@ -141,7 +141,7 @@ class ReminderSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     channel_display = serializers.CharField(source='get_channel_display', read_only=True)
-    link_service_name = serializers.CharField(source='link_service.name', read_only=True)
+    link_service_name = serializers.CharField(source='link_service.name', read_only=True, allow_null=True)
     
     class Meta:
         model = Reminder
@@ -153,7 +153,7 @@ class ReminderSerializer(serializers.ModelSerializer):
             'created_by', 'created_by_name', 'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'sent_count', 'delivered_count', 'visit_count',
+            'id', 'organization', 'created_by', 'sent_count', 'delivered_count', 'visit_count',
             'online_bookings_count', 'visit_amount', 'created_at', 'updated_at'
         ]
 

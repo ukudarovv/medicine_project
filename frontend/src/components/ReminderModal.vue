@@ -257,7 +257,24 @@ export default {
         this.$emit('close')
       } catch (error) {
         console.error('Error saving reminder:', error)
-        this.$emit('error', error.response?.data?.detail || 'Ошибка сохранения')
+        console.error('Error response:', error.response?.data)
+        
+        // Format validation errors
+        if (error.response?.data) {
+          const errors = error.response.data
+          if (typeof errors === 'object' && !errors.detail) {
+            let errorMessage = 'Ошибка валидации:\n'
+            Object.keys(errors).forEach(key => {
+              const value = Array.isArray(errors[key]) ? errors[key].join(', ') : errors[key]
+              errorMessage += `${key}: ${value}\n`
+            })
+            this.$emit('error', errorMessage)
+          } else {
+            this.$emit('error', errors.detail || errors.error || 'Ошибка сохранения')
+          }
+        } else {
+          this.$emit('error', 'Ошибка сохранения напоминания')
+        }
       } finally {
         this.loading = false
       }

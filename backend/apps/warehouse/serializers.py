@@ -31,7 +31,7 @@ class StockItemSerializer(serializers.ModelSerializer):
         model = StockItem
         fields = ['id', 'organization', 'name', 'unit', 'min_quantity', 'is_active', 
                   'current_quantity', 'low_stock', 'created_at']
-        read_only_fields = ['id', 'created_at', 'current_quantity', 'low_stock']
+        read_only_fields = ['id', 'organization', 'created_at', 'current_quantity', 'low_stock']
     
     def get_current_quantity(self, obj):
         total = obj.batches.aggregate(total=Sum('quantity'))['total']

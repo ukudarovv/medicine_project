@@ -253,9 +253,12 @@ import { NButton, NTag, useMessage, useDialog } from 'naive-ui'
 import { format, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import * as billingApi from '@/api/billing'
+import { useAuthStore } from '@/stores/auth'
+import axios from '@/api/axios'
 
 const message = useMessage()
 const dialog = useDialog()
+const authStore = useAuthStore()
 
 // Computed property for shift balance (handles both opening and closing)
 const shiftBalance = computed({
@@ -456,9 +459,13 @@ const loadTransactions = async () => {
 
 const loadCurrentShift = async () => {
   try {
-    // Get user's branch (you'll need to get this from auth store or settings)
-    const branchId = shiftForm.value.branch || 1 // Default to 1 for now
-    const response = await billingApi.getCurrentCashShift(branchId)
+    // Get user's branch from shiftForm (set in loadBranches)
+    if (!shiftForm.value.branch) {
+      console.log('No branch selected, skipping current shift check')
+      return
+    }
+    
+    const response = await billingApi.getCurrentCashShift(shiftForm.value.branch)
     currentShift.value = response.data.shift || null
   } catch (error) {
     console.error('Failed to load current shift:', error)
@@ -467,14 +474,28 @@ const loadCurrentShift = async () => {
 
 const loadBranches = async () => {
   try {
-    // This should come from organization API
-    // For now, mock data
-    branchOptions.value = [
-      { label: 'Главный филиал', value: 1 }
-    ]
-    shiftForm.value.branch = 1
+    // Load branches from API
+    const response = await axios.get('/org/branches/')
+    branchOptions.value = response.data.map(branch => ({
+      label: branch.name,
+      value: branch.id
+    }))
+    
+    // Set default branch from auth store or first available branch
+    if (authStore.currentBranchId) {
+      const branchIdNum = parseInt(authStore.currentBranchId)
+      if (branchOptions.value.some(b => b.value === branchIdNum)) {
+        shiftForm.value.branch = branchIdNum
+      }
+    }
+    
+    // If still no branch set, use first available
+    if (!shiftForm.value.branch && branchOptions.value.length > 0) {
+      shiftForm.value.branch = branchOptions.value[0].value
+    }
   } catch (error) {
     console.error('Failed to load branches:', error)
+    message.error('Ошибка загрузки филиалов')
   }
 }
 
@@ -530,6 +551,11 @@ const handleOpenShift = async () => {
     await shiftFormRef.value?.validate()
     shiftSubmitting.value = true
     
+    if (!shiftForm.value.branch) {
+      message.error('Пожалуйста, выберите филиал')
+      return
+    }
+    
     await billingApi.openCashShift({
       branch: shiftForm.value.branch,
       opening_balance: shiftForm.value.opening_balance
@@ -540,7 +566,17 @@ const handleOpenShift = async () => {
     await loadCurrentShift()
   } catch (error) {
     console.error('Failed to open shift:', error)
-    message.error('Ошибка открытия смены')
+    
+    // Show detailed error message
+    if (error.response?.data) {
+      const errorData = error.response.data
+      const errorMsg = typeof errorData === 'string' 
+        ? errorData 
+        : errorData.detail || errorData.branch?.[0] || 'Ошибка открытия смены'
+      message.error(errorMsg)
+    } else {
+      message.error('Ошибка открытия смены')
+    }
   } finally {
     shiftSubmitting.value = false
   }

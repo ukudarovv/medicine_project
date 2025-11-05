@@ -208,7 +208,7 @@
           :path="currentShift ? 'closing_balance' : 'opening_balance'"
         >
           <n-input-number 
-            v-model:value="currentShift ? shiftForm.closing_balance : shiftForm.opening_balance" 
+            v-model:value="shiftBalance" 
             placeholder="0.00"
             style="width: 100%"
             :min="0"
@@ -256,6 +256,20 @@ import * as billingApi from '@/api/billing'
 
 const message = useMessage()
 const dialog = useDialog()
+
+// Computed property for shift balance (handles both opening and closing)
+const shiftBalance = computed({
+  get() {
+    return currentShift.value ? shiftForm.value.closing_balance : shiftForm.value.opening_balance
+  },
+  set(value) {
+    if (currentShift.value) {
+      shiftForm.value.closing_balance = value
+    } else {
+      shiftForm.value.opening_balance = value
+    }
+  }
+})
 
 // State
 const transactions = ref([])

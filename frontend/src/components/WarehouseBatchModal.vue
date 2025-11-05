@@ -152,6 +152,16 @@ const loadWarehouses = async () => {
   }
 }
 
+const resetForm = () => {
+  formData.value = {
+    stockitem: null,
+    warehouse: null,
+    lot: '',
+    exp_date: null,
+    quantity: 0
+  }
+}
+
 watch(() => props.batch, (newVal) => {
   if (newVal && newVal.id) {
     formData.value = {
@@ -170,16 +180,6 @@ onMounted(() => {
   loadStockItems()
   loadWarehouses()
 })
-
-const resetForm = () => {
-  formData.value = {
-    stockitem: null,
-    warehouse: null,
-    lot: '',
-    exp_date: null,
-    quantity: 0
-  }
-}
 
 const handleCancel = () => {
   show.value = false

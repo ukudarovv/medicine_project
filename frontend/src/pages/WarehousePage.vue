@@ -289,13 +289,19 @@ const nomenclatureColumns = [
     title: 'Остаток', 
     key: 'current_quantity', 
     width: 100,
-    render: (row) => row.current_quantity?.toFixed(2) || '0.00'
+    render: (row) => {
+      const value = parseFloat(row.current_quantity)
+      return !isNaN(value) ? value.toFixed(2) : '0.00'
+    }
   },
   { 
     title: 'Мин. остаток', 
     key: 'min_quantity', 
     width: 120,
-    render: (row) => row.min_quantity?.toFixed(2) || '0.00'
+    render: (row) => {
+      const value = parseFloat(row.min_quantity)
+      return !isNaN(value) ? value.toFixed(2) : '0.00'
+    }
   },
   {
     title: 'Статус',
@@ -407,7 +413,10 @@ const movementColumns = [
     title: 'Количество', 
     key: 'qty', 
     width: 120,
-    render: (row) => row.qty?.toFixed(2) || '0.00'
+    render: (row) => {
+      const value = parseFloat(row.qty)
+      return !isNaN(value) ? value.toFixed(2) : '0.00'
+    }
   }
 ]
 
@@ -419,13 +428,19 @@ const inventoryColumns = [
     title: 'Остаток', 
     key: 'total_quantity', 
     width: 120,
-    render: (row) => row.total_quantity?.toFixed(2) || '0.00'
+    render: (row) => {
+      const value = parseFloat(row.total_quantity)
+      return !isNaN(value) ? value.toFixed(2) : '0.00'
+    }
   },
   { 
     title: 'Мин. остаток', 
     key: 'stockitem__min_quantity', 
     width: 130,
-    render: (row) => row.stockitem__min_quantity?.toFixed(2) || '0.00'
+    render: (row) => {
+      const value = parseFloat(row.stockitem__min_quantity)
+      return !isNaN(value) ? value.toFixed(2) : '0.00'
+    }
   },
   {
     title: 'Статус',

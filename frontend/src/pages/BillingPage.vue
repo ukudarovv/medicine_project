@@ -12,15 +12,22 @@
           <n-button 
             type="primary" 
             @click="showPaymentModal = true"
-            :disabled="!currentShift"
           >
             💰 Новый платёж
           </n-button>
           <n-button 
             @click="showCashShiftModal = true"
-            :type="currentShift ? 'default' : 'warning'"
+            :type="currentShift ? 'success' : 'warning'"
           >
             {{ currentShift ? '🔓 Смена открыта' : '🔒 Открыть смену' }}
+          </n-button>
+          <n-button 
+            v-if="currentShift"
+            @click="loadCurrentShift"
+            type="default"
+            title="Обновить статус смены"
+          >
+            🔄
           </n-button>
           <n-button @click="exportReport">
             📊 Экспорт 1C
@@ -142,6 +149,14 @@
             :options="paymentMethodOptions"
             placeholder="Выберите способ оплаты"
           />
+          <n-alert 
+            v-if="paymentForm.method === 'cash' && !currentShift" 
+            type="warning" 
+            style="margin-top: 8px"
+            title="Внимание"
+          >
+            Кассовая смена не открыта. Откройте смену для приёма наличных платежей.
+          </n-alert>
         </n-form-item>
 
         <n-form-item label="Сумма (₸)" path="amount">
@@ -465,10 +480,18 @@ const loadCurrentShift = async () => {
       return
     }
     
+    console.log('Loading current shift for branch:', shiftForm.value.branch)
     const response = await billingApi.getCurrentCashShift(shiftForm.value.branch)
     currentShift.value = response.data.shift || null
+    
+    if (currentShift.value) {
+      console.log('Current shift loaded:', currentShift.value)
+    } else {
+      console.log('No open shift found for branch:', shiftForm.value.branch)
+    }
   } catch (error) {
     console.error('Failed to load current shift:', error)
+    currentShift.value = null
   }
 }
 
@@ -524,6 +547,13 @@ const handleDateRangeChange = () => {
 const handleCreatePayment = async () => {
   try {
     await paymentFormRef.value?.validate()
+    
+    // Additional check for cash payments
+    if (paymentForm.value.method === 'cash' && !currentShift.value) {
+      message.error('Невозможно принять наличный платёж: кассовая смена не открыта')
+      return
+    }
+    
     paymentSubmitting.value = true
     
     await billingApi.createPayment(paymentForm.value)
@@ -542,7 +572,9 @@ const handleCreatePayment = async () => {
     await Promise.all([loadStatistics(), loadTransactions()])
   } catch (error) {
     if (error?.response?.data) {
-      message.error(`Ошибка: ${JSON.stringify(error.response.data)}`)
+      const errorData = error.response.data
+      const errorMsg = errorData.detail || JSON.stringify(errorData)
+      message.error(`Ошибка: ${errorMsg}`)
     } else {
       message.error('Ошибка создания платежа')
     }

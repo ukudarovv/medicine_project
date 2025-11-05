@@ -148,6 +148,28 @@ class PaymentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         return Payment.objects.filter(invoice__visit__appointment__branch__organization=user.organization)
+    
+    def perform_create(self, serializer):
+        """Create payment with cash shift validation for cash payments"""
+        payment_method = serializer.validated_data.get('method')
+        
+        # For cash payments, verify an open cash shift exists
+        if payment_method == 'cash':
+            invoice = serializer.validated_data.get('invoice')
+            branch = invoice.visit.appointment.branch
+            
+            # Check if there's an open shift for this branch
+            open_shift = CashShift.objects.filter(
+                branch=branch,
+                closed_at__isnull=True
+            ).first()
+            
+            if not open_shift:
+                raise serializers.ValidationError({
+                    'detail': 'Невозможно принять наличный платёж: кассовая смена не открыта. Откройте смену перед приёмом платежей.'
+                })
+        
+        serializer.save()
 
 
 class CashShiftViewSet(viewsets.ModelViewSet):

@@ -126,11 +126,16 @@ const loadStockItems = async () => {
   try {
     loadingItems.value = true
     const response = await warehouseAPI.getStockItemsSimple()
-    stockItemOptions.value = response.data.map(item => ({
+    // Handle both paginated and non-paginated responses
+    const items = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data.results || [])
+    stockItemOptions.value = items.map(item => ({
       label: `${item.name} (${item.unit})`,
       value: item.id
     }))
   } catch (error) {
+    console.error('Error loading stock items:', error)
     message.error('Ошибка загрузки номенклатуры')
   } finally {
     loadingItems.value = false
@@ -141,11 +146,16 @@ const loadWarehouses = async () => {
   try {
     loadingWarehouses.value = true
     const response = await warehouseAPI.getWarehouses({ is_active: true })
-    warehouseOptions.value = response.data.map(wh => ({
+    // Handle both paginated and non-paginated responses
+    const warehouses = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data.results || [])
+    warehouseOptions.value = warehouses.map(wh => ({
       label: wh.name,
       value: wh.id
     }))
   } catch (error) {
+    console.error('Error loading warehouses:', error)
     message.error('Ошибка загрузки складов')
   } finally {
     loadingWarehouses.value = false

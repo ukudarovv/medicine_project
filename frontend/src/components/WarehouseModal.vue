@@ -97,11 +97,16 @@ const loadBranches = async () => {
   try {
     loadingBranches.value = true
     const response = await api.get('/org/branches/')
-    branchOptions.value = response.data.map(branch => ({
+    // Handle both paginated and non-paginated responses
+    const branches = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data.results || [])
+    branchOptions.value = branches.map(branch => ({
       label: branch.name,
       value: branch.id
     }))
   } catch (error) {
+    console.error('Error loading branches:', error)
     message.error('Ошибка загрузки филиалов')
   } finally {
     loadingBranches.value = false

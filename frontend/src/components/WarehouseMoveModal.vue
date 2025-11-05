@@ -151,11 +151,16 @@ const loadStockItems = async () => {
   try {
     loadingItems.value = true
     const response = await warehouseAPI.getStockItemsSimple()
-    stockItemOptions.value = response.data.map(item => ({
+    // Handle both paginated and non-paginated responses
+    const items = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data.results || [])
+    stockItemOptions.value = items.map(item => ({
       label: `${item.name} (${item.unit})`,
       value: item.id
     }))
   } catch (error) {
+    console.error('Error loading stock items:', error)
     message.error('Ошибка загрузки номенклатуры')
   } finally {
     loadingItems.value = false
@@ -166,11 +171,16 @@ const loadBranches = async () => {
   try {
     loadingBranches.value = true
     const response = await api.get('/org/branches/')
-    branchOptions.value = response.data.map(branch => ({
+    // Handle both paginated and non-paginated responses
+    const branches = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data.results || [])
+    branchOptions.value = branches.map(branch => ({
       label: branch.name,
       value: branch.id
     }))
   } catch (error) {
+    console.error('Error loading branches:', error)
     message.error('Ошибка загрузки филиалов')
   } finally {
     loadingBranches.value = false
@@ -186,11 +196,16 @@ const loadBatches = async (stockitemId) => {
   try {
     loadingBatches.value = true
     const response = await warehouseAPI.getStockBatches({ stockitem: stockitemId })
-    batchOptions.value = response.data.map(batch => ({
+    // Handle both paginated and non-paginated responses
+    const batches = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data.results || [])
+    batchOptions.value = batches.map(batch => ({
       label: `${batch.warehouse_name} - ${batch.lot || 'без номера'} (${batch.quantity} ${batch.stockitem_unit})`,
       value: batch.id
     }))
   } catch (error) {
+    console.error('Error loading batches:', error)
     message.error('Ошибка загрузки партий')
   } finally {
     loadingBatches.value = false

@@ -305,10 +305,14 @@ export default {
         if (this.filters.period_to) params.period_to = this.filters.period_to
 
         const response = await getReminders(params)
-        this.reminders = response.data
+        // Handle both paginated and non-paginated responses
+        this.reminders = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data?.results || [])
       } catch (error) {
         console.error('Error loading reminders:', error)
         this.handleError('Ошибка загрузки напоминаний')
+        this.reminders = []
       } finally {
         this.loading = false
       }
@@ -367,10 +371,14 @@ export default {
         if (this.campaignFilters.status) params.status = this.campaignFilters.status
 
         const response = await getCampaigns(params)
-        this.campaigns = response.data
+        // Handle both paginated and non-paginated responses
+        this.campaigns = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data?.results || [])
       } catch (error) {
         console.error('Error loading campaigns:', error)
         this.handleError('Ошибка загрузки кампаний')
+        this.campaigns = []
       } finally {
         this.campaignsLoading = false
       }

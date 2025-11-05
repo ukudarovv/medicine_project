@@ -115,6 +115,15 @@ const rules = {
   ]
 }
 
+const resetForm = () => {
+  formData.value = {
+    name: '',
+    unit: 'шт',
+    min_quantity: 0,
+    is_active: true
+  }
+}
+
 watch(() => props.item, (newVal) => {
   if (newVal && newVal.id) {
     formData.value = {
@@ -127,15 +136,6 @@ watch(() => props.item, (newVal) => {
     resetForm()
   }
 }, { immediate: true })
-
-const resetForm = () => {
-  formData.value = {
-    name: '',
-    unit: 'шт',
-    min_quantity: 0,
-    is_active: true
-  }
-}
 
 const handleCancel = () => {
   show.value = false

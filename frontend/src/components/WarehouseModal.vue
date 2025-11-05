@@ -108,6 +108,14 @@ const loadBranches = async () => {
   }
 }
 
+const resetForm = () => {
+  formData.value = {
+    branch: null,
+    name: '',
+    is_active: true
+  }
+}
+
 watch(() => props.warehouse, (newVal) => {
   if (newVal && newVal.id) {
     formData.value = {
@@ -123,14 +131,6 @@ watch(() => props.warehouse, (newVal) => {
 onMounted(() => {
   loadBranches()
 })
-
-const resetForm = () => {
-  formData.value = {
-    branch: null,
-    name: '',
-    is_active: true
-  }
-}
 
 const handleCancel = () => {
   show.value = false

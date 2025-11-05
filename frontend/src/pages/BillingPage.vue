@@ -476,7 +476,13 @@ const loadBranches = async () => {
   try {
     // Load branches from API
     const response = await axios.get('/org/branches/')
-    branchOptions.value = response.data.map(branch => ({
+    
+    // Handle both paginated and non-paginated responses
+    const branches = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data.results || [])
+    
+    branchOptions.value = branches.map(branch => ({
       label: branch.name,
       value: branch.id
     }))

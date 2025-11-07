@@ -72,7 +72,6 @@ class PatientUpsertView(APIView):
             organization = get_object_or_404(Organization, id=data['organization_id'])
             
             patient = Patient.objects.create(
-                organization=organization,
                 first_name=data['first_name'],
                 last_name=data['last_name'],
                 middle_name=data.get('middle_name', ''),
@@ -81,6 +80,9 @@ class PatientUpsertView(APIView):
                 sex=data['sex'],
                 iin=data.get('iin', '')
             )
+            
+            # Add organization to many-to-many relationship
+            patient.organizations.add(organization)
             
             # Create telegram link
             tg_link = PatientTelegramLink.objects.create(
@@ -751,6 +753,126 @@ class BroadcastStatsView(APIView):
             'failed_count': broadcast.failed_count,
             'clicked_count': broadcast.clicked_count,
             'status': broadcast.status
+        })
+
+
+# ==================== Consent Management (for bot) ====================
+
+class DenyAccessRequestView(APIView):
+    """
+    Deny access request (called from Telegram bot)
+    POST /api/bot/consent/access-requests/{uuid}/deny/
+    """
+    permission_classes = [IsBotAuthenticated]
+    
+    def post(self, request, pk):
+        from apps.consent.models import AccessRequest, AuditLog
+        
+        access_request = get_object_or_404(AccessRequest, pk=pk)
+        
+        if access_request.status != 'pending':
+            return Response(
+                {'error': 'Request already processed'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update status
+        access_request.status = 'denied'
+        access_request.responded_at = timezone.now()
+        access_request.save()
+        
+        # Record denial for rate limiting
+        from apps.consent.rate_limiting import ConsentRateLimiter
+        ConsentRateLimiter.record_denial(
+            access_request.requester_org_id,
+            access_request.patient_id
+        )
+        
+        # Log
+        AuditLog.objects.create(
+            user=None,
+            organization=access_request.requester_org,
+            patient=access_request.patient,
+            action='deny',
+            details={'access_request_id': str(access_request.id)}
+        )
+        
+        return Response({
+            'success': True,
+            'org_name': access_request.requester_org.name
+        })
+
+
+class AccessRequestDetailView(APIView):
+    """
+    Get access request details (called from Telegram bot)
+    GET /api/bot/consent/access-requests/{uuid}/
+    """
+    permission_classes = [IsBotAuthenticated]
+    
+    def get(self, request, pk):
+        from apps.consent.models import AccessRequest
+        
+        access_request = get_object_or_404(AccessRequest, pk=pk)
+        
+        return Response({
+            'success': True,
+            'request': {
+                'id': str(access_request.id),
+                'requester_org_name': access_request.requester_org.name,
+                'requester_user_name': access_request.requester_user.get_full_name() if access_request.requester_user else None,
+                'reason': access_request.reason,
+                'scopes': access_request.scopes,
+                'requested_duration_days': access_request.requested_duration_days,
+                'status': access_request.status,
+                'created_at': access_request.created_at.isoformat(),
+            }
+        })
+
+
+class PatientGrantsView(APIView):
+    """
+    Get patient's access grants (called from Telegram bot)
+    GET /api/bot/consent/patient-grants/{telegram_user_id}/
+    """
+    permission_classes = [IsBotAuthenticated]
+    
+    def get(self, request, telegram_user_id):
+        from apps.consent.models import AccessGrant
+        
+        try:
+            link = PatientTelegramLink.objects.get(telegram_user_id=telegram_user_id)
+            patient = link.patient
+        except PatientTelegramLink.DoesNotExist:
+            return Response(
+                {'success': False, 'error': 'Patient not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get active grants
+        grants = AccessGrant.objects.filter(
+            patient=patient,
+            revoked_at__isnull=True
+        ).select_related('grantee_org')
+        
+        grants_data = []
+        for grant in grants:
+            grants_data.append({
+                'id': str(grant.id),
+                'grantee_org_name': grant.grantee_org.name,
+                'scopes': grant.scopes,
+                'valid_from': grant.valid_from.isoformat(),
+                'valid_to': grant.valid_to.isoformat(),
+                'is_active': grant.is_active(),
+                'is_whitelist': grant.is_whitelist,
+                'last_accessed_at': grant.last_accessed_at.isoformat() if grant.last_accessed_at else None,
+                'access_count': grant.access_count,
+                'created_at': grant.created_at.isoformat(),
+            })
+        
+        return Response({
+            'success': True,
+            'grants': grants_data
         })
 
 

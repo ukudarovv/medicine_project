@@ -78,8 +78,9 @@ class Appointment(models.Model):
     )
     patient = models.ForeignKey(
         Patient,
-        on_delete=models.CASCADE,
-        related_name='appointments'
+        on_delete=models.PROTECT,
+        related_name='appointments',
+        help_text='Нельзя удалить пациента, у которого есть записи на прием'
     )
     room = models.ForeignKey(
         Room,
@@ -282,3 +283,64 @@ class Waitlist(models.Model):
     
     def __str__(self):
         return f"{self.patient.full_name} - {self.get_status_display()}"
+
+
+class Break(models.Model):
+    """
+    Employee breaks in schedule (lunch, meeting, etc.)
+    """
+    TYPE_CHOICES = [
+        ('lunch', 'Обед'),
+        ('break', 'Перерыв'),
+        ('meeting', 'Совещание'),
+        ('other', 'Другое'),
+    ]
+    
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name='breaks'
+    )
+    break_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='break')
+    
+    # Date and time
+    date = models.DateField(db_index=True)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    
+    # Details
+    note = models.TextField(blank=True, help_text='Примечание к перерыву')
+    
+    # Recurring break
+    is_recurring = models.BooleanField(default=False, help_text='Повторяется каждый день')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'breaks'
+        verbose_name = 'Break'
+        verbose_name_plural = 'Breaks'
+        ordering = ['date', 'start_time']
+        indexes = [
+            models.Index(fields=['employee', 'date']),
+            models.Index(fields=['date', 'start_time']),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.full_name} - {self.get_break_type_display()} ({self.date} {self.start_time}-{self.end_time})"
+    
+    def clean(self):
+        if self.start_time >= self.end_time:
+            raise ValidationError('Start time must be before end time')
+        
+        # Check for overlapping breaks for the same employee on the same date
+        overlapping = Break.objects.filter(
+            employee=self.employee,
+            date=self.date,
+            start_time__lt=self.end_time,
+            end_time__gt=self.start_time
+        ).exclude(id=self.id)
+        
+        if overlapping.exists():
+            raise ValidationError('Employee has overlapping breaks on this date')

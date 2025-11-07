@@ -35,16 +35,24 @@ class PatientDiseaseInline(admin.TabularInline):
 class PatientAdmin(admin.ModelAdmin):
     list_display = [
         'last_name', 'first_name', 'birth_date', 'phone',
-        'balance', 'is_active', 'created_at'
+        'get_organizations_list', 'balance', 'is_active', 'created_at'
     ]
     search_fields = ['first_name', 'last_name', 'phone', 'iin', 'email']
-    list_filter = ['organization', 'sex', 'is_active', 'created_at']
-    raw_id_fields = ['organization']
+    list_filter = ['sex', 'is_active', 'created_at']
+    filter_horizontal = ['organizations']
     inlines = [RepresentativeInline, PatientFileInline, PatientPhoneInline, PatientDiseaseInline]
+    
+    def get_organizations_list(self, obj):
+        """Display list of organizations for the patient"""
+        orgs = obj.organizations.all()
+        if orgs:
+            return ', '.join([org.name for org in orgs])
+        return '-'
+    get_organizations_list.short_description = 'Организации'
     
     fieldsets = (
         ('Основная информация', {
-            'fields': ('organization', 'first_name', 'last_name', 'middle_name', 'birth_date', 'sex')
+            'fields': ('organizations', 'first_name', 'last_name', 'middle_name', 'birth_date', 'sex')
         }),
         ('Контакты', {
             'fields': ('phone', 'email', 'address', 'kato_address')

@@ -12,6 +12,8 @@
           <n-button 
             type="primary" 
             @click="showPaymentModal = true"
+            :disabled="!currentShift"
+            :title="!currentShift ? 'Откройте кассовую смену для создания платежей' : 'Создать новый платёж'"
           >
             💰 Новый платёж
           </n-button>
@@ -204,6 +206,15 @@
       style="width: 500px"
       :mask-closable="false"
     >
+      <n-alert 
+        v-if="!currentShift && branchOptions.length === 0" 
+        type="warning" 
+        title="Нет доступных филиалов"
+        style="margin-bottom: 16px"
+      >
+        У вас нет доступа к филиалам. Обратитесь к администратору.
+      </n-alert>
+      
       <n-form 
         ref="shiftFormRef"
         :model="shiftForm"
@@ -215,6 +226,7 @@
             v-model:value="shiftForm.branch" 
             :options="branchOptions"
             placeholder="Выберите филиал"
+            :disabled="branchOptions.length === 0"
           />
         </n-form-item>
 
@@ -240,9 +252,19 @@
           title="Текущая смена"
           style="margin-top: 16px"
         >
+          Филиал: {{ currentShift.branch_name }}<br>
           Открыта: {{ formatDateTime(currentShift.opened_at) }}<br>
           Кассир: {{ currentShift.opened_by_name }}<br>
           Начальный остаток: {{ formatMoney(currentShift.opening_balance) }} ₸
+        </n-alert>
+        
+        <n-alert 
+          v-if="!currentShift" 
+          type="info" 
+          title="Информация"
+          style="margin-top: 16px"
+        >
+          При открытии кассовой смены укажите начальный остаток наличных в кассе.
         </n-alert>
       </n-form>
 
@@ -253,6 +275,7 @@
             :type="currentShift ? 'error' : 'primary'"
             @click="currentShift ? handleCloseShift() : handleOpenShift()"
             :loading="shiftSubmitting"
+            :disabled="!currentShift && branchOptions.length === 0"
           >
             {{ currentShift ? 'Закрыть смену' : 'Открыть смену' }}
           </n-button>
@@ -482,7 +505,9 @@ const loadCurrentShift = async () => {
     
     console.log('Loading current shift for branch:', shiftForm.value.branch)
     const response = await billingApi.getCurrentCashShift(shiftForm.value.branch)
-    currentShift.value = response.data.shift || null
+    
+    // API returns {shift: {...}} or {shift: null}
+    currentShift.value = response.data.shift
     
     if (currentShift.value) {
       console.log('Current shift loaded:', currentShift.value)
@@ -591,16 +616,29 @@ const handleOpenShift = async () => {
     
     if (!shiftForm.value.branch) {
       message.error('Пожалуйста, выберите филиал')
+      shiftSubmitting.value = false
       return
     }
     
-    await billingApi.openCashShift({
+    console.log('Opening shift with data:', {
       branch: shiftForm.value.branch,
       opening_balance: shiftForm.value.opening_balance
     })
     
-    message.success('Кассовая смена открыта')
+    const response = await billingApi.openCashShift({
+      branch: shiftForm.value.branch,
+      opening_balance: shiftForm.value.opening_balance
+    })
+    
+    console.log('Shift opened successfully:', response.data)
+    
+    message.success('Кассовая смена успешно открыта')
     showCashShiftModal.value = false
+    
+    // Reset form
+    shiftForm.value.opening_balance = 0
+    
+    // Reload current shift
     await loadCurrentShift()
   } catch (error) {
     console.error('Failed to open shift:', error)
@@ -608,10 +646,31 @@ const handleOpenShift = async () => {
     // Show detailed error message
     if (error.response?.data) {
       const errorData = error.response.data
-      const errorMsg = typeof errorData === 'string' 
-        ? errorData 
-        : errorData.detail || errorData.branch?.[0] || 'Ошибка открытия смены'
-      message.error(errorMsg)
+      console.error('Error data:', errorData)
+      
+      // Handle different error formats
+      let errorMsg = 'Ошибка открытия смены'
+      
+      if (typeof errorData === 'string') {
+        errorMsg = errorData
+      } else if (errorData.detail) {
+        errorMsg = errorData.detail
+      } else if (errorData.branch) {
+        // Branch validation error
+        errorMsg = Array.isArray(errorData.branch) ? errorData.branch[0] : errorData.branch
+      } else if (errorData.opening_balance) {
+        errorMsg = Array.isArray(errorData.opening_balance) 
+          ? errorData.opening_balance[0] 
+          : errorData.opening_balance
+      } else if (errorData.non_field_errors) {
+        errorMsg = Array.isArray(errorData.non_field_errors)
+          ? errorData.non_field_errors[0]
+          : errorData.non_field_errors
+      }
+      
+      message.error(errorMsg, { duration: 5000 })
+    } else if (error.message) {
+      message.error(`Ошибка: ${error.message}`)
     } else {
       message.error('Ошибка открытия смены')
     }

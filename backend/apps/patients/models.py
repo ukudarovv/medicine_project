@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from django.utils import timezone
 from apps.org.models import Organization
+from .utils.encryption import encrypt_iin, decrypt_iin, hash_iin, mask_iin
 
 
 class Patient(models.Model):
@@ -12,10 +14,10 @@ class Patient(models.Model):
         ('F', 'Женский'),
     ]
     
-    organization = models.ForeignKey(
+    organizations = models.ManyToManyField(
         Organization,
-        on_delete=models.CASCADE,
-        related_name='patients'
+        related_name='patients',
+        help_text='Организации, в которых зарегистрирован пациент'
     )
     
     # Personal info
@@ -31,7 +33,9 @@ class Patient(models.Model):
     address = models.TextField(blank=True)
     
     # Identity
-    iin = models.CharField(max_length=20, blank=True, db_index=True, help_text='ИИН')
+    iin = models.CharField(max_length=20, blank=True, db_index=True, help_text='ИИН (legacy, use iin_enc for new records)')
+    iin_enc = models.TextField(blank=True, help_text='Encrypted IIN (AES-256 via Fernet)')
+    iin_hash = models.CharField(max_length=64, blank=True, db_index=True, help_text='SHA-256 hash of IIN for lookups')
     iin_verified = models.BooleanField(default=False, help_text='ИИН верифицирован')
     iin_verified_at = models.DateTimeField(null=True, blank=True, help_text='Дата верификации ИИН')
     documents = models.JSONField(default=dict, blank=True, help_text='Документы (паспорт и т.д.)')
@@ -120,11 +124,33 @@ class Patient(models.Model):
         indexes = [
             models.Index(fields=['phone']),
             models.Index(fields=['iin']),
-            models.Index(fields=['organization', 'phone']),
+            models.Index(fields=['iin_hash']),
         ]
     
     def __str__(self):
         return f"{self.last_name} {self.first_name}"
+    
+    @property
+    def organization(self):
+        """
+        Get primary organization (first one added) for backward compatibility
+        """
+        return self.organizations.first()
+    
+    def has_organization(self, organization):
+        """
+        Check if patient belongs to specific organization
+        """
+        return self.organizations.filter(id=organization.id).exists()
+    
+    def add_organization(self, organization):
+        """
+        Add organization to patient
+        """
+        if not self.has_organization(organization):
+            self.organizations.add(organization)
+            return True
+        return False
     
     @property
     def full_name(self):
@@ -141,6 +167,49 @@ class Patient(models.Model):
         return today.year - self.birth_date.year - (
             (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
         )
+    
+    @property
+    def iin_decrypted(self):
+        """Get decrypted IIN (use with caution - only for authorized users)"""
+        if self.iin_enc:
+            return decrypt_iin(self.iin_enc)
+        return self.iin  # Fallback to legacy plain IIN
+    
+    @property
+    def iin_masked(self):
+        """Get masked IIN for display"""
+        iin = self.iin_decrypted
+        return mask_iin(iin) if iin else ''
+    
+    def set_iin(self, plain_iin: str):
+        """
+        Set IIN with automatic encryption and hashing
+        
+        Args:
+            plain_iin: Plain IIN string (12 digits)
+        """
+        if plain_iin:
+            # Remove whitespace and dashes
+            plain_iin = plain_iin.replace(' ', '').replace('-', '')
+            
+            # Encrypt and hash
+            self.iin_enc = encrypt_iin(plain_iin)
+            self.iin_hash = hash_iin(plain_iin)
+            
+            # Keep legacy field for backward compatibility (will be removed in Phase 4)
+            self.iin = plain_iin
+        else:
+            self.iin_enc = ''
+            self.iin_hash = ''
+            self.iin = ''
+    
+    def save(self, *args, **kwargs):
+        """Override save to auto-encrypt IIN if needed"""
+        # If iin is set but iin_enc is not, encrypt it
+        if self.iin and not self.iin_enc:
+            self.set_iin(self.iin)
+        
+        super().save(*args, **kwargs)
 
 
 class Representative(models.Model):
@@ -839,3 +908,63 @@ class TreatmentPlanTemplate(models.Model):
     def __str__(self):
         return f"{self.name} ({self.organization.name})"
 
+
+class PatientVerification(models.Model):
+    """
+    SMS verification for patient registration
+    Временное хранение данных для верификации пациента через SMS
+    """
+    # Temp data before verification
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='patient_verifications'
+    )
+    phone = models.CharField(max_length=20, db_index=True)
+    verification_code = models.CharField(max_length=6)
+    patient_data = models.JSONField(help_text='Temporary patient data before verification')
+    
+    # Status
+    is_verified = models.BooleanField(default=False)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.IntegerField(default=0, help_text='Number of verification attempts')
+    
+    # Meta
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text='Code expiration time')
+    
+    class Meta:
+        db_table = 'patient_verifications'
+        verbose_name = 'Patient Verification'
+        verbose_name_plural = 'Patient Verifications'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['phone', 'is_verified']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.phone} - {'Verified' if self.is_verified else 'Pending'}"
+    
+    def is_expired(self):
+        """Check if verification code is expired"""
+        return timezone.now() > self.expires_at
+    
+    def verify(self, code):
+        """Verify the code"""
+        self.attempts += 1
+        self.save(update_fields=['attempts'])
+        
+        if self.is_expired():
+            return False, 'Код истек. Запросите новый код.'
+        
+        if self.attempts > 3:
+            return False, 'Превышено количество попыток. Запросите новый код.'
+        
+        if self.verification_code == code:
+            self.is_verified = True
+            self.verified_at = timezone.now()
+            self.save(update_fields=['is_verified', 'verified_at'])
+            return True, 'Код подтвержден'
+        
+        return False, f'Неверный код. Осталось попыток: {3 - self.attempts}'

@@ -268,7 +268,9 @@ export default {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/styles/tokens.scss';
+
 .send-message-form {
   max-width: 100%;
 }
@@ -281,11 +283,11 @@ export default {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: #333;
+  color: $text-primary;
 }
 
 .required {
-  color: #e74c3c;
+  color: $status-no-show;
 }
 
 .form-group input,
@@ -293,14 +295,21 @@ export default {
 .form-group textarea {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
   font-size: 14px;
+  background: $bg-tertiary;
+  color: $text-primary;
+  
+  &:focus {
+    outline: none;
+    border-color: $primary-color;
+  }
 }
 
 .form-group input:disabled {
-  background: #f5f5f5;
-  color: #666;
+  background: $bg-secondary;
+  color: $text-disabled;
   cursor: not-allowed;
 }
 
@@ -313,7 +322,7 @@ export default {
   display: block;
   margin-top: 6px;
   font-size: 12px;
-  color: #666;
+  color: $text-secondary;
 }
 
 .recipient-search {
@@ -327,10 +336,10 @@ export default {
   right: 0;
   max-height: 300px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: $bg-secondary;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  box-shadow: $shadow-md;
   z-index: 10;
   margin-top: 4px;
 }
@@ -338,12 +347,12 @@ export default {
 .search-result-item {
   padding: 12px 16px;
   cursor: pointer;
-  border-bottom: 1px solid #ecf0f1;
+  border-bottom: 1px solid $border-color;
   transition: background 0.2s;
 }
 
 .search-result-item:hover {
-  background: #f8f9fa;
+  background: $bg-tertiary;
 }
 
 .search-result-item:last-child {
@@ -358,11 +367,12 @@ export default {
 
 .patient-info strong {
   font-size: 14px;
+  color: $text-primary;
 }
 
 .patient-info small {
   font-size: 12px;
-  color: #7f8c8d;
+  color: $text-secondary;
 }
 
 .patient-tags {
@@ -374,23 +384,24 @@ export default {
 .tag-mini {
   display: inline-block;
   padding: 2px 8px;
-  background: #e8f4fd;
-  color: #2980b9;
+  background: rgba($status-booked, 0.2);
+  color: $status-booked;
   border-radius: 10px;
   font-size: 11px;
 }
 
 .selected-patients {
-  margin-top: 16px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 6px;
+  margin-top: $spacing-md;
+  padding: $spacing-md;
+  background: $bg-tertiary;
+  border-radius: $radius-md;
+  border: 1px solid $border-color;
 }
 
 .selected-patients h4 {
   margin: 0 0 12px 0;
   font-size: 14px;
-  color: #666;
+  color: $text-secondary;
 }
 
 .patient-chips {
@@ -404,16 +415,17 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: #fff;
-  border: 1px solid #ddd;
+  background: $bg-secondary;
+  border: 1px solid $border-color;
   border-radius: 16px;
   font-size: 13px;
+  color: $text-primary;
 }
 
 .patient-chip button {
   border: none;
   background: none;
-  color: #e74c3c;
+  color: $status-no-show;
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
@@ -423,46 +435,50 @@ export default {
 .placeholder-hints {
   margin-top: 12px;
   padding: 16px;
-  background: #f5f5f5;
-  border-radius: 6px;
+  background: $bg-tertiary;
+  border-radius: $radius-md;
+  border: 1px solid $border-color;
 }
 
 .placeholder-hints strong {
   display: block;
   margin-bottom: 12px;
   font-size: 13px;
-  color: #666;
+  color: $text-secondary;
 }
 
 .placeholder-chip {
   display: inline-block;
   padding: 6px 12px;
   margin: 6px 6px 0 0;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  background: $bg-secondary;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
   font-size: 12px;
   font-family: monospace;
   cursor: pointer;
   transition: all 0.2s;
+  color: $text-primary;
 }
 
 .placeholder-chip:hover {
-  background: #3498db;
+  background: $primary-color;
   color: #fff;
-  border-color: #3498db;
+  border-color: $primary-color;
 }
 
 .sms-counter {
   margin-top: 12px;
   padding: 12px 16px;
-  background: #e8f4fd;
-  border-radius: 6px;
+  background: rgba($status-booked, 0.15);
+  border-radius: $radius-md;
   font-size: 14px;
+  color: $text-primary;
+  border: 1px solid rgba($status-booked, 0.3);
 }
 
 .sms-counter strong {
-  color: #2980b9;
+  color: $status-booked;
 }
 
 .cost-info {
@@ -471,29 +487,29 @@ export default {
 }
 
 .cost-info strong {
-  color: #27ae60;
+  color: $status-done;
 }
 
 .sms-counter .warning {
   display: block;
   margin-top: 8px;
-  color: #e67e22;
+  color: $status-in-progress;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 24px;
+  margin-top: $spacing-lg;
   padding-top: 20px;
-  border-top: 1px solid #ecf0f1;
+  border-top: 1px solid $border-color;
 }
 
 .btn-primary,
 .btn-secondary {
   padding: 12px 28px;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-md;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -501,12 +517,12 @@ export default {
 }
 
 .btn-primary {
-  background: #3498db;
+  background: $primary-color;
   color: #fff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2980b9;
+  background: darken($primary-color, 10%);
 }
 
 .btn-primary:disabled {
@@ -515,12 +531,13 @@ export default {
 }
 
 .btn-secondary {
-  background: #ecf0f1;
-  color: #333;
+  background: $bg-tertiary;
+  color: $text-primary;
+  border: 1px solid $border-color;
 }
 
 .btn-secondary:hover {
-  background: #bdc3c7;
+  background: lighten($bg-tertiary, 5%);
 }
 </style>
 

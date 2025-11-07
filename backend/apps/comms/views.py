@@ -32,7 +32,7 @@ class MessageLogViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        return MessageLog.objects.filter(patient__organization=user.organization)
+        return MessageLog.objects.filter(patient__organizations=user.organization)
     
     @action(detail=False, methods=['get'])
     def balance(self, request):
@@ -713,7 +713,7 @@ class PatientContactViewSet(viewsets.ModelViewSet):
         patient_id = self.request.query_params.get('patient')
         
         queryset = PatientContact.objects.filter(
-            patient__organization=user.organization
+            patient__organizations=user.organization
         )
         
         if patient_id:

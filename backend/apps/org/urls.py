@@ -6,11 +6,13 @@ from .views import (
     RoomViewSet,
     ResourceViewSet,
     SettingsViewSet,
-    ClinicInfoView
+    ClinicInfoView,
+    OrganizationUserViewSet
 )
 
 router = DefaultRouter()
 router.register('organizations', OrganizationViewSet, basename='organization')
+router.register('organization-users', OrganizationUserViewSet, basename='organization-user')
 router.register('branches', BranchViewSet, basename='branch')
 router.register('rooms', RoomViewSet, basename='room')
 router.register('resources', ResourceViewSet, basename='resource')

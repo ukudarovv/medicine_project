@@ -17,7 +17,7 @@ export const useAuthStore = defineStore('auth', () => {
         password
       })
       
-      const { access, refresh, user: userData } = response.data
+      const { access, refresh, user: userData, branches } = response.data
       
       accessToken.value = access
       refreshToken.value = refresh
@@ -26,6 +26,14 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('accessToken', access)
       localStorage.setItem('refreshToken', refresh)
       localStorage.setItem('user', JSON.stringify(userData))
+      
+      // Set default branch if available
+      if (branches && branches.length > 0) {
+        const defaultBranch = branches.find(b => b.is_default) || branches[0]
+        currentBranchId.value = String(defaultBranch.id)
+        localStorage.setItem('currentBranchId', String(defaultBranch.id))
+        console.log('Auto-selected branch:', defaultBranch.name, 'ID:', defaultBranch.id)
+      }
       
       return true
     } catch (error) {

@@ -141,3 +141,5 @@ After creating a warehouse:
 2. The "Warehouse" field should contain a list of available warehouses
 3. You can select a warehouse from the dropdown list
 
+
+

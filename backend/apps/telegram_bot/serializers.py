@@ -174,7 +174,7 @@ class SupportTicketCreateSerializer(serializers.Serializer):
     """Create support ticket via bot"""
     telegram_user_id = serializers.IntegerField(required=True)
     subject = serializers.CharField(max_length=200)
-    message = serializers.TextField()
+    message = serializers.CharField(style={'base_template': 'textarea.html'})
 
 
 class BotBroadcastSerializer(serializers.ModelSerializer):

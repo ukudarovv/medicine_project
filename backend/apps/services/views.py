@@ -31,14 +31,29 @@ class ServiceCategoryViewSet(viewsets.ModelViewSet):
     """
     queryset = ServiceCategory.objects.all()
     serializer_class = ServiceCategorySerializer
-    permission_classes = [IsAuthenticated, IsBranchAdmin]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'code']
     ordering_fields = ['order', 'name']
     
+    def get_permissions(self):
+        """
+        Only require admin permission for write operations
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsBranchAdmin()]
+        return [IsAuthenticated()]
+    
     def get_queryset(self):
         user = self.request.user
-        queryset = ServiceCategory.objects.filter(organization=user.organization)
+        
+        # Filter by organization
+        if user.is_superuser:
+            queryset = ServiceCategory.objects.all()
+        elif user.organization:
+            queryset = ServiceCategory.objects.filter(organization=user.organization)
+        else:
+            queryset = ServiceCategory.objects.none()
         
         # Only root categories for tree view
         if self.request.query_params.get('root_only'):
@@ -67,15 +82,30 @@ class ServiceViewSet(viewsets.ModelViewSet):
     """
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
-    permission_classes = [IsAuthenticated, IsBranchMember]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'is_active', 'is_expensive']
     search_fields = ['name', 'code', 'description']
     ordering_fields = ['name', 'code', 'base_price']
     
+    def get_permissions(self):
+        """
+        Only require admin permission for write operations
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsBranchAdmin()]
+        return [IsAuthenticated()]
+    
     def get_queryset(self):
         user = self.request.user
-        queryset = Service.objects.filter(organization=user.organization)
+        
+        # Filter by organization
+        if user.is_superuser:
+            queryset = Service.objects.all()
+        elif user.organization:
+            queryset = Service.objects.filter(organization=user.organization)
+        else:
+            queryset = Service.objects.none()
         
         # Filter by category (including children)
         category_id = self.request.query_params.get('category')
@@ -94,11 +124,6 @@ class ServiceViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return ServiceListSerializer
         return ServiceSerializer
-    
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAuthenticated(), IsBranchAdmin()]
-        return super().get_permissions()
     
     @action(detail=True, methods=['post'])
     def add_material(self, request, pk=None):

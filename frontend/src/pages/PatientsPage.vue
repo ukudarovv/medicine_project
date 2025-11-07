@@ -13,9 +13,11 @@
             <span>🔍</span>
           </template>
         </n-input>
-        <n-button type="primary" @click="openNewPatient">
-          + Новый пациент
-        </n-button>
+        <n-dropdown :options="addPatientOptions" @select="handleAddPatientSelect">
+          <n-button type="primary">
+            + Новый пациент
+          </n-button>
+        </n-dropdown>
       </div>
     </div>
 
@@ -29,10 +31,15 @@
       />
     </div>
 
-    <!-- Patient Modal -->
+    <!-- Patient Modals -->
     <PatientModal
       v-model:show="showPatientModal"
       :patient="selectedPatient"
+      @saved="handlePatientSaved"
+    />
+
+    <PatientAddByIINModal
+      v-model:show="showAddByIINModal"
       @saved="handlePatientSaved"
     />
 
@@ -61,6 +68,7 @@ import { ref, computed, onMounted, h } from 'vue'
 import { NButton, NSpace, NTag, useMessage } from 'naive-ui'
 import apiClient from '@/api/axios'
 import PatientModal from '@/components/PatientModal.vue'
+import PatientAddByIINModal from '@/components/PatientAddByIINModal.vue'
 import { format, parseISO } from 'date-fns'
 
 const message = useMessage()
@@ -70,8 +78,23 @@ const patients = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const showPatientModal = ref(false)
+const showAddByIINModal = ref(false)
 const showDeleteConfirm = ref(false)
 const selectedPatient = ref(null)
+
+// Dropdown options for adding patient
+const addPatientOptions = [
+  {
+    label: '🔍 По ИИН (с SMS верификацией)',
+    key: 'by-iin',
+    icon: () => h('span', '🔍')
+  },
+  {
+    label: '📝 Полная форма',
+    key: 'full-form',
+    icon: () => h('span', '📝')
+  }
+]
 
 // Pagination
 const paginationProps = {
@@ -239,6 +262,15 @@ async function loadPatients() {
     message.error('Ошибка загрузки пациентов')
   } finally {
     loading.value = false
+  }
+}
+
+function handleAddPatientSelect(key) {
+  if (key === 'by-iin') {
+    showAddByIINModal.value = true
+  } else if (key === 'full-form') {
+    selectedPatient.value = null
+    showPatientModal.value = true
   }
 }
 

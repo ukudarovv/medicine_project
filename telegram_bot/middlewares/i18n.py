@@ -43,6 +43,17 @@ class I18nMiddleware(BaseMiddleware):
         # Get user's language from database or default to 'ru'
         user_language = data.get('user_language', 'ru')
         
+        # For unregistered users in registration flow, check FSM state for language
+        if not data.get('is_registered', False):
+            state = data.get('state')
+            if state:
+                try:
+                    state_data = await state.get_data()
+                    if 'language' in state_data:
+                        user_language = state_data['language']
+                except Exception:
+                    pass
+        
         # Add translation function to data
         def t(key: str, **kwargs) -> str:
             """Translate key with optional formatting"""

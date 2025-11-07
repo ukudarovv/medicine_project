@@ -76,3 +76,5 @@ const branches = Array.isArray(response.data)
 ## Дополнительная информация
 Проблема была вызвана тем, что `BranchViewSet` в Django использует `PageNumberPagination`, которая оборачивает результаты в объект с ключом `results`. Все исправления теперь учитывают этот формат.
 
+
+

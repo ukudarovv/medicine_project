@@ -482,9 +482,11 @@ export default {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/styles/tokens.scss';
+
 .marketing-page {
-  padding: 24px;
+  padding: $spacing-lg;
   max-width: 1600px;
   margin: 0 auto;
 }
@@ -493,13 +495,14 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: $spacing-lg;
 }
 
 .page-header h1 {
   margin: 0;
   font-size: 28px;
   font-weight: 600;
+  color: $text-primary;
 }
 
 .header-actions {
@@ -511,7 +514,7 @@ export default {
 .btn-secondary {
   padding: 10px 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-md;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -519,28 +522,29 @@ export default {
 }
 
 .btn-primary {
-  background: #3498db;
+  background: $primary-color;
   color: #fff;
 }
 
 .btn-primary:hover {
-  background: #2980b9;
+  background: darken($primary-color, 10%);
 }
 
 .btn-secondary {
-  background: #ecf0f1;
-  color: #333;
+  background: $bg-tertiary;
+  color: $text-primary;
+  border: 1px solid $border-color;
 }
 
 .btn-secondary:hover {
-  background: #bdc3c7;
+  background: lighten($bg-tertiary, 5%);
 }
 
 .tabs {
   display: flex;
   gap: 0;
-  border-bottom: 2px solid #ecf0f1;
-  margin-bottom: 24px;
+  border-bottom: 2px solid $border-color;
+  margin-bottom: $spacing-lg;
 }
 
 .tab {
@@ -549,7 +553,7 @@ export default {
   background: transparent;
   font-size: 14px;
   font-weight: 500;
-  color: #7f8c8d;
+  color: $text-secondary;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -557,12 +561,12 @@ export default {
 }
 
 .tab:hover {
-  color: #3498db;
+  color: $primary-color;
 }
 
 .tab.active {
-  color: #3498db;
-  border-bottom-color: #3498db;
+  color: $primary-color;
+  border-bottom-color: $primary-color;
 }
 
 .filters {
@@ -570,9 +574,10 @@ export default {
   gap: 16px;
   align-items: center;
   padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  margin-bottom: 24px;
+  background: $bg-secondary;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-lg;
+  border: 1px solid $border-color;
 }
 
 .filter-group {
@@ -584,23 +589,26 @@ export default {
 .filter-group label {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: $text-primary;
 }
 
 .filter-group input[type="date"],
 .filter-group .filter-select {
   padding: 6px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
   font-size: 14px;
   min-width: 180px;
+  background: $bg-tertiary;
+  color: $text-primary;
 }
 
 .table-container {
-  background: #fff;
-  border-radius: 8px;
+  background: $bg-secondary;
+  border-radius: $radius-md;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-color;
 }
 
 .data-table {
@@ -609,8 +617,8 @@ export default {
 }
 
 .data-table thead {
-  background: #f8f9fa;
-  border-bottom: 2px solid #ecf0f1;
+  background: $bg-tertiary;
+  border-bottom: 2px solid $border-color;
 }
 
 .data-table th {
@@ -618,18 +626,19 @@ export default {
   text-align: left;
   font-size: 13px;
   font-weight: 600;
-  color: #555;
+  color: $text-secondary;
   text-transform: uppercase;
 }
 
 .data-table td {
   padding: 16px;
-  border-bottom: 1px solid #ecf0f1;
+  border-bottom: 1px solid $border-color;
   font-size: 14px;
+  color: $text-primary;
 }
 
 .data-table tbody tr:hover {
-  background: #f8f9fa;
+  background: $bg-tertiary;
 }
 
 .name-cell {
@@ -640,7 +649,7 @@ export default {
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: #7f8c8d;
+  color: $text-secondary;
 }
 
 .number-cell {
@@ -650,10 +659,11 @@ export default {
 .type-badge {
   display: inline-block;
   padding: 4px 12px;
-  background: #ecf0f1;
+  background: $bg-tertiary;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+  color: $text-primary;
 }
 
 .status-badge {
@@ -665,32 +675,32 @@ export default {
 }
 
 .status-badge.draft {
-  background: #95a5a6;
+  background: $status-draft;
   color: #fff;
 }
 
 .status-badge.scheduled {
-  background: #f39c12;
+  background: $status-in-progress;
   color: #fff;
 }
 
 .status-badge.running {
-  background: #3498db;
+  background: $status-booked;
   color: #fff;
 }
 
 .status-badge.paused {
-  background: #e67e22;
+  background: $status-in-progress;
   color: #fff;
 }
 
 .status-badge.finished {
-  background: #27ae60;
+  background: $status-done;
   color: #fff;
 }
 
 .status-badge.failed {
-  background: #e74c3c;
+  background: $status-no-show;
   color: #fff;
 }
 
@@ -703,18 +713,18 @@ export default {
 }
 
 .conversion-badge.high {
-  background: #d4edda;
-  color: #155724;
+  background: rgba(76, 175, 80, 0.2);
+  color: $status-done;
 }
 
 .conversion-badge.medium {
-  background: #fff3cd;
-  color: #856404;
+  background: rgba(255, 152, 0, 0.2);
+  color: $status-in-progress;
 }
 
 .conversion-badge.low {
-  background: #f8d7da;
-  color: #721c24;
+  background: rgba(244, 67, 54, 0.2);
+  color: $status-no-show;
 }
 
 .actions-cell {
@@ -757,7 +767,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
+  background-color: $border-color;
   transition: 0.3s;
   border-radius: 24px;
 }
@@ -775,7 +785,7 @@ export default {
 }
 
 input:checked + .slider {
-  background-color: #27ae60;
+  background-color: $status-done;
 }
 
 input:checked + .slider:before {
@@ -786,14 +796,14 @@ input:checked + .slider:before {
 .empty-cell {
   text-align: center;
   padding: 48px;
-  color: #7f8c8d;
+  color: $text-secondary;
   font-style: italic;
 }
 
 .coming-soon {
   text-align: center;
   padding: 64px;
-  color: #7f8c8d;
+  color: $text-secondary;
   font-size: 16px;
 }
 
@@ -802,22 +812,22 @@ input:checked + .slider:before {
   top: 24px;
   right: 24px;
   padding: 16px 24px;
-  border-radius: 8px;
+  border-radius: $radius-md;
   font-size: 14px;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: $shadow-md;
   z-index: 1000;
   animation: slideIn 0.3s ease-out;
 }
 
 .notification.success {
-  background: #d4edda;
-  color: #155724;
+  background: rgba(76, 175, 80, 0.9);
+  color: #fff;
 }
 
 .notification.error {
-  background: #f8d7da;
-  color: #721c24;
+  background: rgba(244, 67, 54, 0.9);
+  color: #fff;
 }
 
 @keyframes slideIn {

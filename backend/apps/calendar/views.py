@@ -8,14 +8,15 @@ from datetime import datetime, timedelta
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from apps.core.permissions import IsBranchMember, IsBranchAdmin
-from .models import Availability, Appointment, AppointmentResource, Waitlist
+from .models import Availability, Appointment, AppointmentResource, Waitlist, Break
 from .serializers import (
     AvailabilitySerializer,
     AppointmentSerializer,
     AppointmentListSerializer,
     AppointmentMoveSerializer,
     AppointmentResourceSerializer,
-    WaitlistSerializer
+    WaitlistSerializer,
+    BreakSerializer
 )
 
 
@@ -99,7 +100,24 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         self.send_websocket_event(appointment, 'appointment_created')
     
     def perform_update(self, serializer):
+        old_status = serializer.instance.status if serializer.instance else None
         appointment = serializer.save()
+        
+        # Auto-create Visit when appointment status changes to done or in_progress
+        if appointment.status in ['done', 'in_progress'] and old_status != appointment.status:
+            # Check if visit already exists
+            if not hasattr(appointment, 'visit'):
+                from apps.visits.models import Visit
+                Visit.objects.get_or_create(
+                    appointment=appointment,
+                    defaults={
+                        'status': 'in_progress' if appointment.status == 'in_progress' else 'completed',
+                        'is_patient_arrived': True if appointment.status in ['in_progress', 'done'] else False,
+                        'arrived_at': timezone.now() if appointment.status in ['in_progress', 'done'] else None,
+                        'comment': f'Визит создан автоматически из записи #{appointment.id}',
+                        'created_by': self.request.user if self.request.user.is_authenticated else None
+                    }
+                )
         
         # Send WebSocket notification
         self.send_websocket_event(appointment, 'appointment_updated')
@@ -451,7 +469,7 @@ class WaitlistViewSet(viewsets.ModelViewSet):
         patient_id = self.request.query_params.get('patient')
         
         queryset = Waitlist.objects.filter(
-            patient__organization=user.organization
+            patient__organizations=user.organization
         )
         
         if patient_id:
@@ -472,4 +490,71 @@ class WaitlistViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(waitlist_entry)
         return Response(serializer.data)
+
+
+class BreakViewSet(viewsets.ModelViewSet):
+    """
+    Employee breaks management (lunch, meetings, etc.)
+    """
+    queryset = Break.objects.all()
+    serializer_class = BreakSerializer
+    # Temporarily disabled for development
+    # permission_classes = [IsAuthenticated, IsBranchMember]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['employee', 'date', 'break_type', 'is_recurring']
+    
+    def get_queryset(self):
+        # TODO: Enable organization filtering in production
+        # user = self.request.user
+        employee_id = self.request.query_params.get('employee')
+        
+        queryset = Break.objects.all()
+        
+        if employee_id:
+            queryset = queryset.filter(employee_id=employee_id)
+        
+        # Filter by date range
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        
+        if date_from:
+            queryset = queryset.filter(date__gte=date_from)
+        
+        if date_to:
+            queryset = queryset.filter(date__lte=date_to)
+        
+        return queryset.select_related('employee')
+    
+    @action(detail=False, methods=['delete'])
+    def delete_recurring(self, request):
+        """
+        Delete all recurring breaks for an employee
+        """
+        employee_id = request.query_params.get('employee')
+        start_time = request.query_params.get('start_time')
+        end_time = request.query_params.get('end_time')
+        break_type = request.query_params.get('break_type')
+        
+        if not all([employee_id, start_time, end_time]):
+            return Response(
+                {'error': 'employee, start_time, and end_time are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        filters = {
+            'employee_id': employee_id,
+            'start_time': start_time,
+            'end_time': end_time,
+            'is_recurring': True
+        }
+        
+        if break_type:
+            filters['break_type'] = break_type
+        
+        deleted_count, _ = Break.objects.filter(**filters).delete()
+        
+        return Response({
+            'deleted': deleted_count,
+            'message': f'Deleted {deleted_count} recurring breaks'
+        })
 

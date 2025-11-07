@@ -58,30 +58,33 @@ export default {
 </script>
 
 <style scoped lang="scss">
+@import '@/styles/tokens.scss';
+
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: $z-modal;
   padding: 20px;
   overflow-y: auto;
 }
 
 .modal-container {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  background: $bg-secondary;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-lg;
   max-width: 95vw;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   animation: modalSlideIn 0.3s ease-out;
+  border: 1px solid $border-color;
 }
 
 @keyframes modalSlideIn {
@@ -99,22 +102,22 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 32px;
-  border-bottom: 1px solid #ecf0f1;
+  padding: $spacing-lg $spacing-xl;
+  border-bottom: 1px solid $border-color;
 }
 
 .modal-header h2 {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
-  color: #2c3e50;
+  color: $text-primary;
 }
 
 .modal-close {
   background: none;
   border: none;
   font-size: 32px;
-  color: #7f8c8d;
+  color: $text-secondary;
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -122,24 +125,24 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: $radius-sm;
   transition: all 0.2s;
 }
 
 .modal-close:hover {
-  background: #ecf0f1;
-  color: #2c3e50;
+  background: $bg-tertiary;
+  color: $text-primary;
 }
 
 .modal-body {
-  padding: 32px;
+  padding: $spacing-xl;
   overflow-y: auto;
   flex: 1;
 }
 
 .modal-footer {
-  padding: 20px 32px;
-  border-top: 1px solid #ecf0f1;
+  padding: 20px $spacing-xl;
+  border-top: 1px solid $border-color;
   display: flex;
   justify-content: flex-end;
   gap: 12px;

@@ -482,7 +482,9 @@ export default {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/styles/tokens.scss';
+
 .campaign-wizard {
   min-height: 500px;
   display: flex;
@@ -492,9 +494,9 @@ export default {
 .steps {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 32px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #ecf0f1;
+  margin-bottom: $spacing-xl;
+  padding-bottom: $spacing-md;
+  border-bottom: 2px solid $border-color;
 }
 
 .step {
@@ -513,46 +515,46 @@ export default {
   left: 50%;
   width: 100%;
   height: 2px;
-  background: #ecf0f1;
+  background: $border-color;
   z-index: -1;
 }
 
 .step.completed:not(:last-child)::after {
-  background: #3498db;
+  background: $primary-color;
 }
 
 .step-number {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #ecf0f1;
-  color: #7f8c8d;
+  background: $bg-tertiary;
+  color: $text-secondary;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: $spacing-sm;
   transition: all 0.3s;
 }
 
 .step.active .step-number {
-  background: #3498db;
+  background: $primary-color;
   color: #fff;
   transform: scale(1.1);
 }
 
 .step.completed .step-number {
-  background: #27ae60;
+  background: $status-done;
   color: #fff;
 }
 
 .step-label {
   font-size: 13px;
-  color: #7f8c8d;
+  color: $text-secondary;
 }
 
 .step.active .step-label {
-  color: #3498db;
+  color: $primary-color;
   font-weight: 500;
 }
 
@@ -564,15 +566,17 @@ export default {
 }
 
 .step-content h3 {
-  margin: 0 0 24px 0;
+  margin: 0 0 $spacing-lg 0;
   font-size: 20px;
   font-weight: 600;
+  color: $text-primary;
 }
 
 .step-content h4 {
-  margin: 24px 0 16px 0;
+  margin: $spacing-lg 0 $spacing-md 0;
   font-size: 16px;
   font-weight: 600;
+  color: $text-primary;
 }
 
 .form-group {
@@ -583,11 +587,11 @@ export default {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: #333;
+  color: $text-primary;
 }
 
 .required {
-  color: #e74c3c;
+  color: $status-no-show;
 }
 
 .form-group input,
@@ -595,17 +599,19 @@ export default {
 .form-group textarea {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
   font-size: 14px;
   transition: border-color 0.2s;
+  background: $bg-tertiary;
+  color: $text-primary;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: $primary-color;
 }
 
 .form-group textarea {
@@ -617,7 +623,7 @@ export default {
   display: block;
   margin-top: 6px;
   font-size: 12px;
-  color: #666;
+  color: $text-secondary;
 }
 
 .form-row {
@@ -641,10 +647,12 @@ export default {
   align-items: center;
   gap: 10px;
   cursor: pointer;
+  color: $text-primary;
 }
 
 .checkbox-label input[type="checkbox"] {
   width: auto;
+  accent-color: $primary-color;
 }
 
 .tags-list {
@@ -659,8 +667,8 @@ export default {
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: #e8f4fd;
-  color: #2980b9;
+  background: rgba($status-booked, 0.2);
+  color: $status-booked;
   border-radius: 16px;
   font-size: 13px;
 }
@@ -668,7 +676,7 @@ export default {
 .tag-chip button {
   border: none;
   background: none;
-  color: #2980b9;
+  color: $status-booked;
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
@@ -678,66 +686,71 @@ export default {
 .placeholder-hints {
   margin-top: 12px;
   padding: 16px;
-  background: #f5f5f5;
-  border-radius: 6px;
+  background: $bg-tertiary;
+  border-radius: $radius-md;
+  border: 1px solid $border-color;
 }
 
 .placeholder-hints strong {
   display: block;
   margin-bottom: 12px;
   font-size: 13px;
-  color: #666;
+  color: $text-secondary;
 }
 
 .placeholder-chip {
   display: inline-block;
   padding: 6px 12px;
   margin: 6px 6px 0 0;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  background: $bg-secondary;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
   font-size: 12px;
   font-family: monospace;
   cursor: pointer;
   transition: all 0.2s;
+  color: $text-primary;
 }
 
 .placeholder-chip:hover {
-  background: #3498db;
+  background: $primary-color;
   color: #fff;
-  border-color: #3498db;
+  border-color: $primary-color;
 }
 
 .sms-counter {
   margin-top: 12px;
   padding: 12px 16px;
-  background: #e8f4fd;
-  border-radius: 6px;
+  background: rgba($status-booked, 0.15);
+  border-radius: $radius-md;
   font-size: 14px;
+  color: $text-primary;
+  border: 1px solid rgba($status-booked, 0.3);
 }
 
 .sms-counter strong {
-  color: #2980b9;
+  color: $status-booked;
 }
 
 .sms-counter .warning {
   display: block;
   margin-top: 8px;
-  color: #e67e22;
+  color: $status-in-progress;
 }
 
 .preview-section {
-  margin-top: 24px;
+  margin-top: $spacing-lg;
 }
 
 .message-preview {
   padding: 16px;
-  background: #f8f9fa;
-  border-left: 3px solid #3498db;
-  border-radius: 6px;
+  background: $bg-tertiary;
+  border-left: 3px solid $primary-color;
+  border-radius: $radius-md;
   font-family: inherit;
   white-space: pre-wrap;
   line-height: 1.6;
+  color: $text-primary;
 }
 
 .prepare-prompt {
@@ -746,20 +759,22 @@ export default {
 }
 
 .prepare-prompt p {
-  margin-bottom: 24px;
+  margin-bottom: $spacing-lg;
   font-size: 16px;
-  color: #7f8c8d;
+  color: $text-secondary;
 }
 
 .cost-estimate {
   padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  margin-bottom: 24px;
+  background: $bg-tertiary;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-lg;
+  border: 1px solid $border-color;
 }
 
 .cost-estimate h4 {
-  margin: 0 0 16px 0;
+  margin: 0 0 $spacing-md 0;
+  color: $text-primary;
 }
 
 .cost-grid {
@@ -774,27 +789,27 @@ export default {
 
 .cost-label {
   font-size: 12px;
-  color: #7f8c8d;
+  color: $text-secondary;
   margin-bottom: 8px;
 }
 
 .cost-value {
   font-size: 24px;
   font-weight: 600;
-  color: #2c3e50;
+  color: $text-primary;
 }
 
 .cost-value.highlight {
-  color: #27ae60;
+  color: $status-done;
 }
 
 .wizard-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 32px;
+  margin-top: $spacing-xl;
   padding-top: 20px;
-  border-top: 1px solid #ecf0f1;
+  border-top: 1px solid $border-color;
 }
 
 .btn-primary,
@@ -802,7 +817,7 @@ export default {
 .btn-success {
   padding: 12px 28px;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-md;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -810,21 +825,21 @@ export default {
 }
 
 .btn-primary {
-  background: #3498db;
+  background: $primary-color;
   color: #fff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2980b9;
+  background: darken($primary-color, 10%);
 }
 
 .btn-success {
-  background: #27ae60;
+  background: $status-done;
   color: #fff;
 }
 
 .btn-success:hover:not(:disabled) {
-  background: #229954;
+  background: darken($status-done, 10%);
 }
 
 .btn-primary:disabled,
@@ -834,12 +849,13 @@ export default {
 }
 
 .btn-secondary {
-  background: #ecf0f1;
-  color: #333;
+  background: $bg-tertiary;
+  color: $text-primary;
+  border: 1px solid $border-color;
 }
 
 .btn-secondary:hover {
-  background: #bdc3c7;
+  background: lighten($bg-tertiary, 5%);
 }
 </style>
 

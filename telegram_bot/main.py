@@ -12,7 +12,7 @@ import redis.asyncio as redis
 from config import config
 from middlewares.i18n import I18nMiddleware
 from middlewares.auth import AuthMiddleware
-from handlers import start, booking, my_appointments, documents, payments, feedback, support, profile
+from handlers import start, booking, my_appointments, documents, payments, feedback, support, profile, consent
 
 # Configure logging
 logging.basicConfig(
@@ -73,6 +73,7 @@ def create_dispatcher() -> Dispatcher:
     dp.include_router(feedback.router)
     dp.include_router(support.router)
     dp.include_router(profile.router)
+    dp.include_router(consent.router)
     
     # Register startup/shutdown
     dp.startup.register(on_startup)

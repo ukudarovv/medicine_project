@@ -281,7 +281,13 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         user = self.request.user
         branch_id = self.request.query_params.get('branch')
         
-        queryset = Employee.objects.filter(organization=user.organization)
+        # Filter by organization
+        if user.is_superuser:
+            queryset = Employee.objects.all()
+        elif user.organization:
+            queryset = Employee.objects.filter(organization=user.organization)
+        else:
+            queryset = Employee.objects.none()
         
         # Filter by branch if provided
         if branch_id:

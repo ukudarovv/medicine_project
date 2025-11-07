@@ -144,7 +144,7 @@ def process_reminder_queue():
     jobs = ReminderJob.objects.filter(
         status='queued',
         scheduled_at__lte=now
-    ).select_related('reminder', 'patient', 'patient__organization')[:100]  # Batch limit
+    ).select_related('reminder', 'patient').prefetch_related('patient__organizations')[:100]  # Batch limit
     
     for job in jobs:
         try:

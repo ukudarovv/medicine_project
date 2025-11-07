@@ -51,6 +51,22 @@ class CashShiftSerializer(serializers.ModelSerializer):
     
     def get_is_open(self, obj):
         return obj.closed_at is None
+    
+    def validate_branch(self, value):
+        """Validate that no open shift exists for this branch"""
+        # Check if there's already an open shift for this branch
+        existing_shift = CashShift.objects.filter(
+            branch=value,
+            closed_at__isnull=True
+        ).first()
+        
+        if existing_shift:
+            raise serializers.ValidationError(
+                f'Кассовая смена для филиала "{value.name}" уже открыта. '
+                f'Закройте текущую смену перед открытием новой.'
+            )
+        
+        return value
 
 
 class TransactionSerializer(serializers.Serializer):

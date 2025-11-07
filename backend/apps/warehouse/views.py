@@ -14,11 +14,26 @@ from .serializers import (
 class WarehouseViewSet(viewsets.ModelViewSet):
     queryset = Warehouse.objects.all()
     serializer_class = WarehouseSerializer
-    permission_classes = [IsAuthenticated, IsBranchMember]
+    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """
+        Only require warehouse permission for write operations
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsWarehouse()]
+        return [IsAuthenticated()]
     
     def get_queryset(self):
         user = self.request.user
-        qs = Warehouse.objects.filter(branch__organization=user.organization)
+        
+        # Filter by organization
+        if user.is_superuser:
+            qs = Warehouse.objects.all()
+        elif user.organization:
+            qs = Warehouse.objects.filter(branch__organization=user.organization)
+        else:
+            qs = Warehouse.objects.none()
         
         # Фильтры
         is_active = self.request.query_params.get('is_active')
@@ -39,11 +54,26 @@ class WarehouseViewSet(viewsets.ModelViewSet):
 class StockItemViewSet(viewsets.ModelViewSet):
     queryset = StockItem.objects.all()
     serializer_class = StockItemSerializer
-    permission_classes = [IsAuthenticated, IsBranchMember]
+    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """
+        Only require warehouse permission for write operations
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsWarehouse()]
+        return [IsAuthenticated()]
     
     def get_queryset(self):
         user = self.request.user
-        qs = StockItem.objects.filter(organization=user.organization)
+        
+        # Filter by organization
+        if user.is_superuser:
+            qs = StockItem.objects.all()
+        elif user.organization:
+            qs = StockItem.objects.filter(organization=user.organization)
+        else:
+            qs = StockItem.objects.none()
         
         # Поиск
         search = self.request.query_params.get('search')
@@ -76,11 +106,26 @@ class StockItemViewSet(viewsets.ModelViewSet):
 class StockBatchViewSet(viewsets.ModelViewSet):
     queryset = StockBatch.objects.all()
     serializer_class = StockBatchSerializer
-    permission_classes = [IsAuthenticated, IsBranchMember]
+    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """
+        Only require warehouse permission for write operations
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsWarehouse()]
+        return [IsAuthenticated()]
     
     def get_queryset(self):
         user = self.request.user
-        qs = StockBatch.objects.filter(warehouse__branch__organization=user.organization)
+        
+        # Filter by organization
+        if user.is_superuser:
+            qs = StockBatch.objects.all()
+        elif user.organization:
+            qs = StockBatch.objects.filter(warehouse__branch__organization=user.organization)
+        else:
+            qs = StockBatch.objects.none()
         
         # Фильтры
         warehouse_id = self.request.query_params.get('warehouse')
@@ -103,9 +148,18 @@ class StockBatchViewSet(viewsets.ModelViewSet):
     def inventory(self, request):
         """Сводка по остаткам на складах"""
         user = request.user
-        batches = StockBatch.objects.filter(
-            warehouse__branch__organization=user.organization
-        ).values(
+        
+        # Filter by organization
+        if user.is_superuser:
+            queryset = StockBatch.objects.all()
+        elif user.organization:
+            queryset = StockBatch.objects.filter(
+                warehouse__branch__organization=user.organization
+            )
+        else:
+            queryset = StockBatch.objects.none()
+        
+        batches = queryset.values(
             'stockitem__id',
             'stockitem__name', 
             'stockitem__unit',
@@ -122,11 +176,26 @@ class StockBatchViewSet(viewsets.ModelViewSet):
 class StockMoveViewSet(viewsets.ModelViewSet):
     queryset = StockMove.objects.all()
     serializer_class = StockMoveSerializer
-    permission_classes = [IsAuthenticated, IsBranchMember]
+    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """
+        Only require warehouse permission for write operations
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsWarehouse()]
+        return [IsAuthenticated()]
     
     def get_queryset(self):
         user = self.request.user
-        qs = StockMove.objects.filter(branch__organization=user.organization)
+        
+        # Filter by organization
+        if user.is_superuser:
+            qs = StockMove.objects.all()
+        elif user.organization:
+            qs = StockMove.objects.filter(branch__organization=user.organization)
+        else:
+            qs = StockMove.objects.none()
         
         # Фильтры
         move_type = self.request.query_params.get('type')

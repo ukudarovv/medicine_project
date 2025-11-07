@@ -2,7 +2,8 @@ from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from apps.core.permissions import IsBranchMember, IsOwner, IsBranchAdmin
+from apps.core.permissions import IsBranchMember, IsOwner, IsBranchAdmin, IsSuperAdmin
+from apps.core.models import User
 from .models import Organization, Branch, Room, Resource, Settings, ClinicInfo
 from .serializers import (
     OrganizationSerializer,
@@ -11,7 +12,9 @@ from .serializers import (
     RoomSerializer,
     ResourceSerializer,
     SettingsSerializer,
-    ClinicInfoSerializer
+    ClinicInfoSerializer,
+    OrganizationUserSerializer,
+    OrganizationUserCreateSerializer
 )
 
 
@@ -21,13 +24,62 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     """
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
-    permission_classes = [IsAuthenticated, IsOwner]
+    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """
+        Super admins can do everything, owners can only view their org
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsSuperAdmin()]
+        return [IsAuthenticated()]
     
     def get_queryset(self):
+        # Super admins can see all organizations
+        if self.request.user.is_superuser:
+            return Organization.objects.all()
+        
         # Users can only see their own organization
         if self.request.user.organization:
             return Organization.objects.filter(id=self.request.user.organization.id)
         return Organization.objects.none()
+    
+    @action(detail=True, methods=['get', 'post'], url_path='users')
+    def users(self, request, pk=None):
+        """
+        Get or create users for an organization
+        Only superadmins and organization owners can access
+        """
+        organization = self.get_object()
+        
+        # Check permissions
+        if not request.user.is_superuser and request.user.organization != organization:
+            return Response(
+                {'detail': 'You do not have permission to access this organization.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if request.method == 'GET':
+            users = User.objects.filter(organization=organization)
+            serializer = OrganizationUserSerializer(users, many=True)
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+            # Only owner or superadmin can create users
+            if request.user.role != 'owner' and not request.user.is_superuser:
+                return Response(
+                    {'detail': 'Only organization owners can create users.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            serializer = OrganizationUserCreateSerializer(data=request.data)
+            if serializer.is_valid():
+                user = serializer.save(organization=organization)
+                return Response(
+                    OrganizationUserSerializer(user).data,
+                    status=status.HTTP_201_CREATED
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class BranchViewSet(viewsets.ModelViewSet):
@@ -36,10 +88,22 @@ class BranchViewSet(viewsets.ModelViewSet):
     """
     queryset = Branch.objects.all()
     serializer_class = BranchSerializer
-    permission_classes = [IsAuthenticated, IsBranchMember]
+    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        """
+        Only require branch membership for create/update/delete, not for list/retrieve
+        """
+        if self.action in ['list', 'retrieve', 'my_branches']:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsBranchMember()]
     
     def get_queryset(self):
         user = self.request.user
+        
+        # Superuser can see all branches
+        if user.is_superuser:
+            return Branch.objects.all()
         
         # Owner can see all branches in organization
         if user.role == 'owner' and user.organization:
@@ -183,7 +247,8 @@ class ClinicInfoView(generics.RetrieveUpdateAPIView):
         user = self.request.user
         
         if not user.organization:
-            return None
+            from rest_framework.exceptions import NotFound
+            raise NotFound('User is not associated with any organization')
         
         # Get or create clinic info
         clinic_info, created = ClinicInfo.objects.get_or_create(
@@ -191,4 +256,86 @@ class ClinicInfoView(generics.RetrieveUpdateAPIView):
         )
         
         return clinic_info
+
+
+class OrganizationUserViewSet(viewsets.ModelViewSet):
+    """
+    User management for organizations
+    """
+    queryset = User.objects.all()
+    serializer_class = OrganizationUserSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Filter users by organization
+        """
+        user = self.request.user
+        org_id = self.request.query_params.get('organization')
+        
+        # Superadmin can see all users
+        if user.is_superuser:
+            if org_id:
+                return User.objects.filter(organization_id=org_id)
+            return User.objects.all()
+        
+        # Owners can only see users in their organization
+        if user.role == 'owner' and user.organization:
+            return User.objects.filter(organization=user.organization)
+        
+        return User.objects.none()
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return OrganizationUserCreateSerializer
+        return OrganizationUserSerializer
+    
+    def perform_create(self, serializer):
+        """
+        Create user in the organization
+        """
+        user = self.request.user
+        org_id = self.request.data.get('organization_id')
+        
+        # Validate permissions
+        if user.is_superuser:
+            if org_id:
+                organization = Organization.objects.get(id=org_id)
+            else:
+                raise serializers.ValidationError({'organization_id': 'Required for superadmin'})
+        elif user.role == 'owner':
+            organization = user.organization
+        else:
+            raise serializers.ValidationError({'detail': 'Permission denied'})
+        
+        serializer.save(organization=organization)
+    
+    def perform_update(self, serializer):
+        """
+        Update user - only allow certain fields
+        """
+        user = self.request.user
+        instance = self.get_object()
+        
+        # Check permissions
+        if not user.is_superuser and user.organization != instance.organization:
+            raise serializers.ValidationError({'detail': 'Permission denied'})
+        
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+        """
+        Delete user
+        """
+        user = self.request.user
+        
+        # Check permissions
+        if not user.is_superuser and user.organization != instance.organization:
+            raise serializers.ValidationError({'detail': 'Permission denied'})
+        
+        # Don't allow deleting yourself
+        if instance.id == user.id:
+            raise serializers.ValidationError({'detail': 'Cannot delete yourself'})
+        
+        instance.delete()
 

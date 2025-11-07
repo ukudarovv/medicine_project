@@ -74,13 +74,13 @@ def filter_campaign_audience(organization, filters):
         # Note: This assumes Visit has a services M2M or similar
         # Adjust based on actual Visit model structure
         visit_patients = Visit.objects.filter(
-            patient__organization=organization
+            patient__organizations=organization
         ).values_list('patient_id', flat=True).distinct()
         patients_query = patients_query.filter(id__in=visit_patients)
     
     # Last visit date range
     if filters.get('last_visit_from') or filters.get('last_visit_to'):
-        visit_query = Visit.objects.filter(patient__organization=organization)
+        visit_query = Visit.objects.filter(patient__organizations=organization)
         
         if filters.get('last_visit_from'):
             if isinstance(filters['last_visit_from'], str):

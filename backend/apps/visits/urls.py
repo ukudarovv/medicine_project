@@ -5,7 +5,8 @@ from .views import (
     VisitServiceViewSet, 
     VisitPrescriptionViewSet, 
     VisitResourceViewSet,
-    VisitFileViewSet
+    VisitFileViewSet,
+    VisitNoteView
 )
 
 router = DefaultRouter()
@@ -16,5 +17,9 @@ router.register('visit-resources', VisitResourceViewSet, basename='visit-resourc
 router.register('files', VisitFileViewSet, basename='visit-file')
 
 urlpatterns = [
+    # Save visit note from desktop dictation
+    path('notes/', VisitNoteView.as_view(), name='visit-note'),
+    
+    # Router URLs
     path('', include(router.urls)),
 ]

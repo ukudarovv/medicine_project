@@ -1,339 +1,275 @@
 """
-Inline keyboards for bot
+Inline keyboards for Telegram bot
 """
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from typing import List, Dict
-from datetime import date, datetime, timedelta
 
 
-def get_language_keyboard() -> InlineKeyboardMarkup:
+def get_language_keyboard():
     """Language selection keyboard"""
-    builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang:ru"),
-        InlineKeyboardButton(text="🇰🇿 Қазақ", callback_data="lang:kk")
-    )
-    return builder.as_markup()
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text='🇷🇺 Русский', callback_data='lang:ru'),
+            InlineKeyboardButton(text='🇰🇿 Қазақша', callback_data='lang:kk')
+        ]
+    ])
+    return keyboard
 
 
-def get_main_menu_keyboard(language: str = 'ru') -> InlineKeyboardMarkup:
+def get_main_menu_keyboard(language='ru'):
     """Main menu keyboard"""
     if language == 'kk':
-        buttons = [
-            ("📅 Жазылу", "menu:booking"),
-            ("📋 Менің жазулартым", "menu:my_appointments"),
-            ("📄 Құжаттар", "menu:documents"),
-            ("💳 Төлемдер", "menu:payments"),
-            ("👤 Профиль", "menu:profile"),
-            ("❓ Көмек", "menu:support"),
-        ]
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='📅 Менің жазылымдарым', callback_data='my_appointments')],
+            [InlineKeyboardButton(text='🆕 Жазылу', callback_data='book_appointment')],
+            [InlineKeyboardButton(text='📄 Құжаттар', callback_data='my_documents')],
+            [InlineKeyboardButton(text='🔐 Менің қолжетімділігім', callback_data='my_access')],
+            [InlineKeyboardButton(text='👤 Профиль', callback_data='profile')],
+            [InlineKeyboardButton(text='💬 Қолдау', callback_data='support')]
+        ])
     else:
-        buttons = [
-            ("📅 Записаться", "menu:booking"),
-            ("📋 Мои записи", "menu:my_appointments"),
-            ("📄 Документы", "menu:documents"),
-            ("💳 Оплата", "menu:payments"),
-            ("👤 Профиль", "menu:profile"),
-            ("❓ Поддержка", "menu:support"),
-        ]
-    
-    builder = InlineKeyboardBuilder()
-    for text, callback_data in buttons:
-        builder.row(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    return builder.as_markup()
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='📅 Мои записи', callback_data='my_appointments')],
+            [InlineKeyboardButton(text='🆕 Записаться', callback_data='book_appointment')],
+            [InlineKeyboardButton(text='📄 Документы', callback_data='my_documents')],
+            [InlineKeyboardButton(text='🔐 Мои доступы', callback_data='my_access')],
+            [InlineKeyboardButton(text='👤 Профиль', callback_data='profile')],
+            [InlineKeyboardButton(text='💬 Поддержка', callback_data='support')]
+        ])
+    return keyboard
 
 
-def get_sex_keyboard(language: str = 'ru') -> InlineKeyboardMarkup:
+def get_sex_keyboard(language='ru'):
     """Sex selection keyboard"""
     if language == 'kk':
-        buttons = [
-            ("👨 Ер", "sex:M"),
-            ("👩 Әйел", "sex:F")
-        ]
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Ер', callback_data='sex:M'),
+                InlineKeyboardButton(text='Әйел', callback_data='sex:F')
+            ]
+        ])
     else:
-        buttons = [
-            ("👨 Мужской", "sex:M"),
-            ("👩 Женский", "sex:F")
-        ]
-    
-    builder = InlineKeyboardBuilder()
-    for text, callback_data in buttons:
-        builder.row(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    return builder.as_markup()
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Мужской', callback_data='sex:M'),
+                InlineKeyboardButton(text='Женский', callback_data='sex:F')
+            ]
+        ])
+    return keyboard
 
 
-def get_consents_keyboard(language: str = 'ru') -> InlineKeyboardMarkup:
-    """Consents keyboard"""
+def get_consents_keyboard(language='ru'):
+    """Consents agreement keyboard"""
     if language == 'kk':
-        text = "✅ Келісемін"
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='✅ Келісемін', callback_data='consent:accept')],
+            [InlineKeyboardButton(text='❌ Бас тарту', callback_data='consent:decline')]
+        ])
     else:
-        text = "✅ Согласен"
-    
-    builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text=text, callback_data="consent:accept"))
-    
-    return builder.as_markup()
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='✅ Принимаю', callback_data='consent:accept')],
+            [InlineKeyboardButton(text='❌ Отказаться', callback_data='consent:decline')]
+        ])
+    return keyboard
 
 
-def get_branches_keyboard(branches: List[Dict]) -> InlineKeyboardMarkup:
-    """Branches selection keyboard"""
-    builder = InlineKeyboardBuilder()
+def get_access_grants_keyboard(grants):
+    """
+    Create keyboard for managing access grants
     
-    for branch in branches:
-        builder.row(
-            InlineKeyboardButton(
-                text=branch['name'],
-                callback_data=f"branch:{branch['id']}"
-            )
-        )
-    
-    builder.row(InlineKeyboardButton(text="« Назад", callback_data="back:main"))
-    
-    return builder.as_markup()
-
-
-def get_services_keyboard(services: List[Dict]) -> InlineKeyboardMarkup:
-    """Services selection keyboard"""
-    builder = InlineKeyboardBuilder()
-    
-    for service in services:
-        price = f"{service['price']} ₸" if service.get('price') else ""
-        text = f"{service['name']} {price}".strip()
-        builder.row(
-            InlineKeyboardButton(
-                text=text,
-                callback_data=f"service:{service['id']}"
-            )
-        )
-    
-    builder.row(InlineKeyboardButton(text="« Назад", callback_data="back:branch"))
-    
-    return builder.as_markup()
-
-
-def get_doctors_keyboard(doctors: List[Dict]) -> InlineKeyboardMarkup:
-    """Doctors selection keyboard"""
-    builder = InlineKeyboardBuilder()
-    
-    for doctor in doctors:
-        specialty = doctor.get('specialty', '')
-        text = f"{doctor['full_name']}"
-        if specialty:
-            text += f" ({specialty})"
+    Args:
+        grants: List of grant objects
+    """
+    buttons = []
+    for grant in grants[:10]:  # Limit to 10 grants
+        grant_id = grant.get('id')
+        org_name = grant.get('grantee_org_name', 'Организация')
+        is_active = grant.get('is_active', False)
         
-        builder.row(
+        status_icon = '🟢' if is_active else '🔴'
+        button_text = f"{status_icon} {org_name}"
+        
+        buttons.append([
             InlineKeyboardButton(
-                text=text,
-                callback_data=f"doctor:{doctor['id']}"
+                text=button_text,
+                callback_data=f'grant_details:{grant_id}'
             )
-        )
+        ])
     
-    builder.row(InlineKeyboardButton(text="« Назад", callback_data="back:service"))
-    
-    return builder.as_markup()
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
 
 
-def get_calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
+def get_branches_keyboard(branches):
+    """Branches selection keyboard"""
+    buttons = []
+    for branch in branches[:10]:
+        buttons.append([
+            InlineKeyboardButton(
+                text=branch.get('name', 'Филиал'),
+                callback_data=f"branch:{branch.get('id')}"
+            )
+        ])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_services_keyboard(services):
+    """Services selection keyboard"""
+    buttons = []
+    for service in services[:10]:
+        buttons.append([
+            InlineKeyboardButton(
+                text=service.get('name', 'Услуга'),
+                callback_data=f"service:{service.get('id')}"
+            )
+        ])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_doctors_keyboard(doctors):
+    """Doctors selection keyboard"""
+    buttons = []
+    for doctor in doctors[:10]:
+        name = doctor.get('full_name', 'Врач')
+        buttons.append([
+            InlineKeyboardButton(
+                text=name,
+                callback_data=f"doctor:{doctor.get('id')}"
+            )
+        ])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_calendar_keyboard(year, month):
     """Calendar keyboard for date selection"""
-    builder = InlineKeyboardBuilder()
+    import calendar
+    buttons = []
     
-    # Month and year header
-    months = {
-        1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
-        5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
-        9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
-    }
-    
-    builder.row(
-        InlineKeyboardButton(text="◀", callback_data=f"cal:prev:{year}:{month}"),
-        InlineKeyboardButton(text=f"{months[month]} {year}", callback_data="ignore"),
-        InlineKeyboardButton(text="▶", callback_data=f"cal:next:{year}:{month}")
-    )
+    # Month/Year header
+    month_name = calendar.month_name[month]
+    buttons.append([InlineKeyboardButton(text=f"📅 {month_name} {year}", callback_data="ignore")])
     
     # Weekday headers
-    weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
-    buttons = [InlineKeyboardButton(text=day, callback_data="ignore") for day in weekdays]
-    builder.row(*buttons)
+    weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    buttons.append([InlineKeyboardButton(text=day, callback_data="ignore") for day in weekdays])
     
     # Calendar days
-    import calendar
     cal = calendar.monthcalendar(year, month)
-    today = date.today()
-    
     for week in cal:
-        buttons = []
+        row = []
         for day in week:
             if day == 0:
-                buttons.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
+                row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
             else:
-                current_date = date(year, month, day)
-                if current_date < today:
-                    # Past date - disabled
-                    buttons.append(InlineKeyboardButton(text=str(day), callback_data="ignore"))
-                else:
-                    # Future date - clickable
-                    buttons.append(InlineKeyboardButton(
-                        text=str(day),
-                        callback_data=f"date:{year}-{month:02d}-{day:02d}"
-                    ))
-        builder.row(*buttons)
+                row.append(InlineKeyboardButton(
+                    text=str(day),
+                    callback_data=f"date:{year}-{month:02d}-{day:02d}"
+                ))
+        buttons.append(row)
     
-    builder.row(InlineKeyboardButton(text="« Назад", callback_data="back:doctor"))
+    # Navigation buttons
+    buttons.append([
+        InlineKeyboardButton(text="◀️", callback_data=f"calendar_prev:{year}:{month}"),
+        InlineKeyboardButton(text="▶️", callback_data=f"calendar_next:{year}:{month}")
+    ])
     
-    return builder.as_markup()
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def get_time_slots_keyboard(slots: List[Dict]) -> InlineKeyboardMarkup:
-    """Time slots keyboard"""
-    builder = InlineKeyboardBuilder()
-    
-    available_slots = [s for s in slots if s['available']]
-    
-    if not available_slots:
-        builder.row(InlineKeyboardButton(text="Нет свободных слотов", callback_data="ignore"))
-    else:
-        # Show in rows of 3
-        row_buttons = []
-        for slot in available_slots:
-            row_buttons.append(
-                InlineKeyboardButton(
-                    text=slot['time'],
-                    callback_data=f"time:{slot['time']}"
-                )
-            )
-            
-            if len(row_buttons) == 3:
-                builder.row(*row_buttons)
-                row_buttons = []
-        
-        if row_buttons:
-            builder.row(*row_buttons)
-    
-    builder.row(InlineKeyboardButton(text="« Назад", callback_data="back:date"))
-    
-    return builder.as_markup()
+def get_time_slots_keyboard(slots):
+    """Time slots selection keyboard"""
+    buttons = []
+    row = []
+    for i, slot in enumerate(slots):
+        if slot.get('available'):
+            row.append(InlineKeyboardButton(
+                text=slot.get('time', '00:00'),
+                callback_data=f"time:{slot.get('time')}"
+            ))
+            if (i + 1) % 3 == 0:
+                buttons.append(row)
+                row = []
+    if row:
+        buttons.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def get_confirmation_keyboard(language: str = 'ru') -> InlineKeyboardMarkup:
-    """Booking confirmation keyboard"""
+def get_confirmation_keyboard(language='ru'):
+    """Confirmation keyboard"""
     if language == 'kk':
-        buttons = [
-            ("✅ Растау", "confirm:yes"),
-            ("❌ Болдырмау", "confirm:no")
-        ]
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='✅ Растау', callback_data='confirm:yes')],
+            [InlineKeyboardButton(text='❌ Болдырмау', callback_data='confirm:no')]
+        ])
     else:
-        buttons = [
-            ("✅ Подтвердить", "confirm:yes"),
-            ("❌ Отменить", "confirm:no")
-        ]
-    
-    builder = InlineKeyboardBuilder()
-    for text, callback_data in buttons:
-        builder.row(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    return builder.as_markup()
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='✅ Подтвердить', callback_data='confirm:yes')],
+            [InlineKeyboardButton(text='❌ Отменить', callback_data='confirm:no')]
+        ])
+    return keyboard
 
 
-def get_appointment_actions_keyboard(appointment_id: int, language: str = 'ru') -> InlineKeyboardMarkup:
-    """Actions for specific appointment"""
+def get_appointment_actions_keyboard(appointment_id, language='ru'):
+    """Appointment actions keyboard"""
     if language == 'kk':
-        buttons = [
-            ("📍 Картада көрсету", f"apt:map:{appointment_id}"),
-            ("🔄 Басқа уақытқа ауыстыру", f"apt:reschedule:{appointment_id}"),
-            ("❌ Болдырмау", f"apt:cancel:{appointment_id}"),
-        ]
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='📝 Толығырақ', callback_data=f'appointment:{appointment_id}')],
+            [InlineKeyboardButton(text='❌ Болдырмау', callback_data=f'cancel_appointment:{appointment_id}')],
+            [InlineKeyboardButton(text='⬅️ Артқа', callback_data='back:main')]
+        ])
     else:
-        buttons = [
-            ("📍 Показать на карте", f"apt:map:{appointment_id}"),
-            ("🔄 Перенести", f"apt:reschedule:{appointment_id}"),
-            ("❌ Отменить", f"apt:cancel:{appointment_id}"),
-        ]
-    
-    builder = InlineKeyboardBuilder()
-    for text, callback_data in buttons:
-        builder.row(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    builder.row(InlineKeyboardButton(text="« Назад", callback_data="back:my_appointments"))
-    
-    return builder.as_markup()
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='📝 Подробнее', callback_data=f'appointment:{appointment_id}')],
+            [InlineKeyboardButton(text='❌ Отменить запись', callback_data=f'cancel_appointment:{appointment_id}')],
+            [InlineKeyboardButton(text='⬅️ Назад', callback_data='back:main')]
+        ])
+    return keyboard
 
 
-def get_documents_type_keyboard(language: str = 'ru') -> InlineKeyboardMarkup:
-    """Document types keyboard"""
+def get_documents_type_keyboard(language='ru'):
+    """Documents type selection keyboard"""
     if language == 'kk':
-        buttons = [
-            ("📋 Бағыттамалар", "doc:direction"),
-            ("💊 Рецепттер", "doc:recipe"),
-            ("📊 Зерттеу нәтижелері", "doc:result"),
-            ("📄 Салық шегерімі үшін анықтама", "doc:tax"),
-        ]
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='📄 Барлық құжаттар', callback_data='docs:all')],
+            [InlineKeyboardButton(text='🏥 Нәтижелер', callback_data='docs:results')],
+            [InlineKeyboardButton(text='📋 Справки', callback_data='docs:certificates')],
+            [InlineKeyboardButton(text='💊 Рецепты', callback_data='docs:prescriptions')],
+            [InlineKeyboardButton(text='⬅️ Артқа', callback_data='back:main')]
+        ])
     else:
-        buttons = [
-            ("📋 Направления", "doc:direction"),
-            ("💊 Рецепты", "doc:recipe"),
-            ("📊 Результаты исследований", "doc:result"),
-            ("📄 Справка для налогового вычета", "doc:tax"),
-        ]
-    
-    builder = InlineKeyboardBuilder()
-    for text, callback_data in buttons:
-        builder.row(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    builder.row(InlineKeyboardButton(text="« Назад", callback_data="back:main"))
-    
-    return builder.as_markup()
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='📄 Все документы', callback_data='docs:all')],
+            [InlineKeyboardButton(text='🏥 Результаты', callback_data='docs:results')],
+            [InlineKeyboardButton(text='📋 Справки', callback_data='docs:certificates')],
+            [InlineKeyboardButton(text='💊 Рецепты', callback_data='docs:prescriptions')],
+            [InlineKeyboardButton(text='⬅️ Назад', callback_data='back:main')]
+        ])
+    return keyboard
 
 
-def get_nps_keyboard() -> InlineKeyboardMarkup:
-    """NPS score keyboard (0-10)"""
-    builder = InlineKeyboardBuilder()
-    
-    # First row: 0-5
-    row1 = [InlineKeyboardButton(text=str(i), callback_data=f"nps:{i}") for i in range(6)]
-    builder.row(*row1)
-    
-    # Second row: 6-10
-    row2 = [InlineKeyboardButton(text=str(i), callback_data=f"nps:{i}") for i in range(6, 11)]
-    builder.row(*row2)
-    
-    return builder.as_markup()
-
-
-def get_support_keyboard(language: str = 'ru') -> InlineKeyboardMarkup:
+def get_support_keyboard(language='ru'):
     """Support menu keyboard"""
     if language == 'kk':
-        buttons = [
-            ("❓ Жиі қойылатын сұрақтар", "support:faq"),
-            ("💬 Оператормен байланысу", "support:contact"),
-            ("📍 Мекенжай және байланыс", "support:address"),
-            ("💰 Баға парағы", "support:price"),
-            ("🕐 Жұмыс кестесі", "support:schedule"),
-        ]
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='❓ Жиі қойылатын сұрақтар', callback_data='support:faq')],
+            [InlineKeyboardButton(text='💬 Оператормен байланысу', callback_data='support:contact')],
+            [InlineKeyboardButton(text='⬅️ Артқа', callback_data='back:main')]
+        ])
     else:
-        buttons = [
-            ("❓ Часто задаваемые вопросы", "support:faq"),
-            ("💬 Связаться с оператором", "support:contact"),
-            ("📍 Адрес и контакты", "support:address"),
-            ("💰 Прайс-лист", "support:price"),
-            ("🕐 График работы", "support:schedule"),
-        ]
-    
-    builder = InlineKeyboardBuilder()
-    for text, callback_data in buttons:
-        builder.row(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    builder.row(InlineKeyboardButton(text="« Назад", callback_data="back:main"))
-    
-    return builder.as_markup()
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='❓ Часто задаваемые вопросы', callback_data='support:faq')],
+            [InlineKeyboardButton(text='💬 Связаться с оператором', callback_data='support:contact')],
+            [InlineKeyboardButton(text='⬅️ Назад', callback_data='back:main')]
+        ])
+    return keyboard
 
 
-def get_back_to_main_keyboard(language: str = 'ru') -> InlineKeyboardMarkup:
-    """Simple back to main menu button"""
-    text = "« Басты мәзірге" if language == 'kk' else "« Главное меню"
-    builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text=text, callback_data="back:main"))
-    return builder.as_markup()
-
+def get_nps_keyboard():
+    """NPS rating keyboard (0-10)"""
+    buttons = []
+    row = []
+    for i in range(11):
+        row.append(InlineKeyboardButton(text=str(i), callback_data=f'nps:{i}'))
+        if (i + 1) % 6 == 0 or i == 10:
+            buttons.append(row)
+            row = []
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

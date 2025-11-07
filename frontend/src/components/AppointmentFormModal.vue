@@ -790,7 +790,7 @@ async function handleSave(closeAfter = false) {
     saving.value = true
 
     const data = {
-      branch: 3, // TODO: get from selected branch or auth store
+      branch: authStore.currentBranchId || 1, // Get from auth store or default to 1
       employee: formData.value.employee,
       patient: formData.value.patient,
       start_datetime: new Date(formData.value.start_datetime).toISOString(),
@@ -811,7 +811,28 @@ async function handleSave(closeAfter = false) {
     }
   } catch (error) {
     console.error('Error saving appointment:', error)
-    if (error.message && !error.message.includes('validate')) {
+    console.error('Error response:', error.response)
+    console.error('Error data:', error.response?.data)
+    
+    if (error.response?.data) {
+      const errors = error.response.data
+      let errorMsg = ''
+      
+      if (typeof errors === 'string') {
+        errorMsg = errors
+      } else if (typeof errors === 'object') {
+        const errorList = []
+        for (const [field, messages] of Object.entries(errors)) {
+          const messageText = Array.isArray(messages) ? messages.join(', ') : messages
+          errorList.push(`${field}: ${messageText}`)
+        }
+        errorMsg = errorList.join('\n')
+      }
+      
+      message.error(errorMsg || 'Ошибка сохранения записи', {
+        duration: 5000
+      })
+    } else if (error.message && !error.message.includes('validate')) {
       message.error('Ошибка сохранения визита')
     }
   } finally {

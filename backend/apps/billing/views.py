@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -236,7 +236,7 @@ class CashShiftViewSet(viewsets.ModelViewSet):
         
         if shift:
             serializer = self.get_serializer(shift)
-            return Response(serializer.data)
+            return Response({'shift': serializer.data})
         else:
             return Response({'shift': None})
     
@@ -323,7 +323,7 @@ class TaxDeductionCertificateViewSet(viewsets.ModelViewSet):
         user = self.request.user
         patient_id = self.request.query_params.get('patient')
         queryset = TaxDeductionCertificate.objects.filter(
-            patient__organization=user.organization
+            patient__organizations=user.organization
         )
         if patient_id:
             queryset = queryset.filter(patient_id=patient_id)

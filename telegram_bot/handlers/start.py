@@ -6,6 +6,7 @@ from aiogram.filters import Command, StateFilter
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
+import logging
 
 from states.registration import RegistrationStates
 from keyboards.inline import get_language_keyboard, get_main_menu_keyboard, get_sex_keyboard, get_consents_keyboard
@@ -13,6 +14,8 @@ from keyboards.reply import get_phone_keyboard, remove_keyboard
 from services.api_client import DjangoAPIClient
 from services.helpers import validate_phone
 from config import config
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 api_client = DjangoAPIClient(config.DJANGO_API_URL, config.DJANGO_API_SECRET)
@@ -66,7 +69,7 @@ async def get_last_name(message: Message, state: FSMContext, t: callable):
 
 
 @router.message(RegistrationStates.middle_name)
-async def get_middle_name(message: Message, state: FSMContext, t: callable, language: str):
+async def get_middle_name(message: Message, state: FSMContext, t: callable):
     """Get middle name"""
     if message.text == '/skip':
         middle_name = ''
@@ -74,9 +77,14 @@ async def get_middle_name(message: Message, state: FSMContext, t: callable, lang
         middle_name = message.text
     
     await state.update_data(middle_name=middle_name)
+    
+    # Get language from state
+    data = await state.get_data()
+    user_language = data.get('language', 'ru')
+    
     await message.answer(
         t('reg_phone'),
-        reply_markup=get_phone_keyboard(language)
+        reply_markup=get_phone_keyboard(user_language)
     )
     await state.set_state(RegistrationStates.phone)
 
@@ -108,20 +116,31 @@ async def get_phone_text(message: Message, state: FSMContext, t: callable):
 
 
 @router.message(RegistrationStates.birth_date)
-async def get_birth_date(message: Message, state: FSMContext, t: callable, language: str):
+async def get_birth_date(message: Message, state: FSMContext, t: callable):
     """Get birth date"""
     try:
         # Parse DD.MM.YYYY
         birth_date = datetime.strptime(message.text, '%d.%m.%Y').date()
+        
+        # Check if date is not in the future
+        from datetime import date
+        if birth_date > date.today():
+            await message.answer(t('reg_birth_date_invalid'))
+            return
+        
         await state.update_data(birth_date=birth_date.isoformat())
+        
+        # Get language from state
+        data = await state.get_data()
+        user_language = data.get('language', 'ru')
         
         await message.answer(
             t('reg_sex'),
-            reply_markup=get_sex_keyboard(language)
+            reply_markup=get_sex_keyboard(user_language)
         )
         await state.set_state(RegistrationStates.sex)
     except ValueError:
-        await message.answer(t('error_general'))
+        await message.answer(t('reg_birth_date_invalid'))
 
 
 @router.callback_query(F.data.startswith('sex:'), StateFilter(RegistrationStates.sex))
@@ -135,25 +154,47 @@ async def select_sex(callback: CallbackQuery, state: FSMContext, t: callable):
 
 
 @router.message(RegistrationStates.iin)
-async def get_iin(message: Message, state: FSMContext, t: callable, language: str):
+async def get_iin(message: Message, state: FSMContext, t: callable):
     """Get IIN"""
     iin = message.text.replace(' ', '').replace('-', '')
     
-    # Verify IIN via API
+    # Basic validation: must be exactly 12 digits
+    if not iin.isdigit() or len(iin) != 12:
+        await message.answer(t('reg_iin_invalid'))
+        return
+    
+    # Save IIN
+    await state.update_data(iin=iin)
+    
+    # Try to verify IIN via API (optional - continue if API unavailable)
+    iin_verified = False
     try:
         result = await api_client.verify_iin(iin)
         if result.get('valid'):
-            await state.update_data(iin=iin)
-            
-            await message.answer(
-                t('reg_consents'),
-                reply_markup=get_consents_keyboard(language)
-            )
-            await state.set_state(RegistrationStates.consents)
+            iin_verified = True
         else:
-            await message.answer(t('reg_iin_invalid'))
-    except Exception:
-        await message.answer(t('error_general'))
+            # IIN is invalid according to API
+            error_msg = result.get('error')
+            if error_msg:
+                await message.answer(f"{t('reg_iin_invalid')}\n\n{error_msg}")
+            else:
+                await message.answer(t('reg_iin_invalid'))
+            return
+    except Exception as e:
+        # API unavailable - log error but continue registration
+        logger.warning(f"IIN verification API unavailable: {e}. Continuing without verification.")
+        iin_verified = False
+    
+    # Get language from state (not from middleware, as user is not registered yet)
+    data = await state.get_data()
+    user_language = data.get('language', 'ru')
+    
+    # Continue to consents
+    await message.answer(
+        t('reg_consents'),
+        reply_markup=get_consents_keyboard(user_language)
+    )
+    await state.set_state(RegistrationStates.consents)
 
 
 @router.callback_query(F.data == 'consent:accept', StateFilter(RegistrationStates.consents))
@@ -181,8 +222,12 @@ async def accept_consents(callback: CallbackQuery, state: FSMContext, t: callabl
         'organization_id': config.DEFAULT_ORGANIZATION_ID
     }
     
+    logger.info(f"Registering patient via API: {patient_data['first_name']} {patient_data['last_name']}")
+    logger.debug(f"Patient data: {patient_data}")
+    
     try:
         result = await api_client.upsert_patient(patient_data)
+        logger.info(f"Patient registered successfully: {result}")
         
         await callback.message.edit_text(
             t('reg_complete', name=data['first_name'])
@@ -195,7 +240,15 @@ async def accept_consents(callback: CallbackQuery, state: FSMContext, t: callabl
         
         await state.clear()
     except Exception as e:
+        logger.error(f"Error completing registration: {e}", exc_info=True)
         await callback.message.edit_text(t('error_general'))
+
+
+@router.callback_query(F.data == 'consent:decline', StateFilter(RegistrationStates.consents))
+async def decline_consents(callback: CallbackQuery, state: FSMContext, t: callable):
+    """Decline consents and cancel registration"""
+    await state.clear()
+    await callback.message.edit_text(t('reg_declined'))
 
 
 @router.callback_query(F.data == 'back:main')
@@ -206,3 +259,10 @@ async def back_to_main(callback: CallbackQuery, language: str):
         reply_markup=get_main_menu_keyboard(language)
     )
 
+
+@router.callback_query(F.data == 'my_access')
+async def callback_my_access(callback: CallbackQuery, t: callable, telegram_user: any):
+    """Handle my_access callback from main menu"""
+    from handlers.consent import cmd_my_access
+    await cmd_my_access(callback.message, t, telegram_user)
+    await callback.answer()

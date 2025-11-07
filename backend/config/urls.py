@@ -21,13 +21,17 @@ urlpatterns = [
         path('warehouse/', include('apps.warehouse.urls')),
         path('comms/', include('apps.comms.urls')),
         path('reports/', include('apps.reports.urls')),
+        path('consent/', include('apps.consent.urls')),
+        # path('ehr/', include('apps.ehr.urls')),  # Temporarily disabled - app not in container
     ])),
-    # Telegram Bot API (separate from v1 for security)
-    path('api/bot/', include('apps.telegram_bot.urls')),
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
+
+# Dynamically add Telegram Bot API if available (for volume mounts)
+if 'apps.telegram_bot' in settings.INSTALLED_APPS:
+    urlpatterns.insert(-2, path('api/bot/', include('apps.telegram_bot.urls')))
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

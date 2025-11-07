@@ -299,24 +299,26 @@ export default {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/styles/tokens.scss';
+
 .reminder-form {
   max-width: 800px;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: $spacing-md;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: $spacing-xs;
   font-weight: 500;
-  color: #333;
+  color: $text-primary;
 }
 
 .required {
-  color: #e74c3c;
+  color: $status-no-show;
 }
 
 .form-group input,
@@ -324,9 +326,16 @@ export default {
 .form-group textarea {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
   font-size: 14px;
+  background: $bg-tertiary;
+  color: $text-primary;
+  
+  &:focus {
+    outline: none;
+    border-color: $primary-color;
+  }
 }
 
 .form-group textarea {
@@ -336,89 +345,95 @@ export default {
 
 .form-group small {
   display: block;
-  margin-top: 4px;
+  margin-top: $spacing-xs;
   font-size: 12px;
-  color: #666;
+  color: $text-secondary;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: $spacing-md;
 }
 
 .placeholder-hints {
-  margin-top: 8px;
+  margin-top: $spacing-sm;
   padding: 12px;
-  background: #f5f5f5;
-  border-radius: 4px;
+  background: $bg-tertiary;
+  border-radius: $radius-sm;
+  border: 1px solid $border-color;
 }
 
 .placeholder-hints strong {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: $spacing-sm;
   font-size: 12px;
-  color: #666;
+  color: $text-secondary;
 }
 
 .placeholder-chip {
   display: inline-block;
   padding: 4px 8px;
   margin: 4px 4px 0 0;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  background: $bg-secondary;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
   font-size: 11px;
   font-family: monospace;
   cursor: pointer;
   transition: all 0.2s;
+  color: $text-primary;
 }
 
 .placeholder-chip:hover {
-  background: #3498db;
+  background: $primary-color;
   color: #fff;
-  border-color: #3498db;
+  border-color: $primary-color;
 }
 
 .sms-counter {
-  margin-top: 8px;
+  margin-top: $spacing-sm;
   padding: 8px 12px;
-  background: #e8f4fd;
-  border-radius: 4px;
+  background: rgba($status-booked, 0.15);
+  border-radius: $radius-sm;
   font-size: 13px;
+  color: $text-primary;
+  border: 1px solid rgba($status-booked, 0.3);
 }
 
 .sms-counter .warning {
   display: block;
-  margin-top: 4px;
-  color: #e67e22;
+  margin-top: $spacing-xs;
+  color: $status-in-progress;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: $spacing-sm;
   cursor: pointer;
+  color: $text-primary;
 }
 
 .checkbox-label input[type="checkbox"] {
   width: auto;
+  accent-color: $primary-color;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid #eee;
+  margin-top: $spacing-lg;
+  padding-top: $spacing-md;
+  border-top: 1px solid $border-color;
 }
 
 .btn-primary,
 .btn-secondary {
   padding: 10px 24px;
   border: none;
-  border-radius: 4px;
+  border-radius: $radius-sm;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -426,12 +441,12 @@ export default {
 }
 
 .btn-primary {
-  background: #3498db;
+  background: $primary-color;
   color: #fff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2980b9;
+  background: darken($primary-color, 10%);
 }
 
 .btn-primary:disabled {
@@ -440,12 +455,13 @@ export default {
 }
 
 .btn-secondary {
-  background: #ecf0f1;
-  color: #333;
+  background: $bg-tertiary;
+  color: $text-primary;
+  border: 1px solid $border-color;
 }
 
 .btn-secondary:hover {
-  background: #bdc3c7;
+  background: lighten($bg-tertiary, 5%);
 }
 
 /* Test Modal */
@@ -455,25 +471,27 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1001;
+  z-index: $z-modal + 1;
 }
 
 .test-modal {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
+  background: $bg-secondary;
+  border-radius: $radius-md;
+  padding: $spacing-lg;
   width: 90%;
   max-width: 400px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: $shadow-lg;
+  border: 1px solid $border-color;
 }
 
 .test-modal h3 {
-  margin: 0 0 16px 0;
+  margin: 0 0 $spacing-md 0;
   font-size: 18px;
+  color: $text-primary;
 }
 </style>
 

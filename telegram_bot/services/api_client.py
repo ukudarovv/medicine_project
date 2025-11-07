@@ -176,4 +176,170 @@ class DjangoAPIClient:
         """Get FAQ list"""
         result = await self._request('GET', 'support/faq/')
         return result.get('faqs', [])
+    
+    # ==================== Consent Management ====================
+    
+    async def verify_consent_otp(self, access_request_id: str, otp_code: str) -> Dict:
+        """
+        Verify OTP code for consent request
+        
+        Args:
+            access_request_id: UUID of access request
+            otp_code: 6-digit OTP code
+            
+        Returns:
+            Dict with success status and grant info
+        """
+        try:
+            url = f"{self.base_url}/api/v1/consent/otp/verify/"
+            
+            # Use bot secret for authentication
+            headers = {
+                'X-Bot-Secret': self.headers['Authorization'].replace('Bearer ', ''),
+                'Content-Type': 'application/json'
+            }
+            
+            data = {
+                'access_request_id': access_request_id,
+                'otp_code': otp_code
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=data, headers=headers) as response:
+                    if response.status == 201:
+                        grant = await response.json()
+                        return {
+                            'success': True,
+                            'grant': grant
+                        }
+                    else:
+                        error_data = await response.json()
+                        return {
+                            'success': False,
+                            'error': error_data.get('error', 'Ошибка верификации OTP')
+                        }
+        except Exception as e:
+            logger.error(f"Failed to verify consent OTP: {e}")
+            return {
+                'success': False,
+                'error': 'Ошибка связи с сервером'
+            }
+    
+    async def deny_access_request(self, access_request_id: str) -> Dict:
+        """
+        Deny access request
+        
+        Args:
+            access_request_id: UUID of access request
+            
+        Returns:
+            Dict with success status
+        """
+        try:
+            result = await self._request(
+                'POST',
+                f'consent/access-requests/{access_request_id}/deny/'
+            )
+            return {
+                'success': True,
+                'org_name': result.get('org_name', '')
+            }
+        except Exception as e:
+            logger.error(f"Failed to deny access request: {e}")
+            return {'success': False}
+    
+    async def get_access_request_details(self, access_request_id: str) -> Dict:
+        """
+        Get details of access request
+        
+        Args:
+            access_request_id: UUID of access request
+            
+        Returns:
+            Dict with success status and request details
+        """
+        try:
+            result = await self._request(
+                'GET',
+                f'consent/access-requests/{access_request_id}/'
+            )
+            return {
+                'success': True,
+                'request': result
+            }
+        except Exception as e:
+            logger.error(f"Failed to get access request details: {e}")
+            return {'success': False}
+    
+    async def get_my_access_grants(self, telegram_user_id: int) -> Dict:
+        """
+        Get patient's active access grants
+        
+        Args:
+            telegram_user_id: Telegram user ID
+            
+        Returns:
+            Dict with success status and grants list
+        """
+        try:
+            result = await self._request(
+                'GET',
+                f'consent/patient-grants/{telegram_user_id}/'
+            )
+            return {
+                'success': True,
+                'grants': result if isinstance(result, list) else result.get('results', [])
+            }
+        except Exception as e:
+            logger.error(f"Failed to get access grants: {e}")
+            return {
+                'success': False,
+                'grants': []
+            }
+    
+    async def revoke_access_grant(self, grant_id: str) -> Dict:
+        """
+        Revoke access grant
+        
+        Args:
+            grant_id: UUID of access grant
+            
+        Returns:
+            Dict with success status
+        """
+        try:
+            result = await self._request(
+                'POST',
+                f'consent/grants/{grant_id}/revoke/'
+            )
+            return {
+                'success': True,
+                'org_name': result.get('org_name', '')
+            }
+        except Exception as e:
+            logger.error(f"Failed to revoke access grant: {e}")
+            return {'success': False}
+    
+    async def get_access_grant_details(self, grant_id: str) -> Dict:
+        """
+        Get details of access grant
+        
+        Args:
+            grant_id: UUID of access grant
+            
+        Returns:
+            Dict with success status and grant details
+        """
+        try:
+            result = await self._request(
+                'GET',
+                f'consent/grants/{grant_id}/'
+            )
+            return {
+                'success': True,
+                'grant': result
+            }
+        except Exception as e:
+            logger.error(f"Failed to get access grant details: {e}")
+            return {'success': False}
 

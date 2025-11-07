@@ -48,6 +48,9 @@
           clearable
         />
         <n-date-picker v-model:value="selectedDate" type="date" clearable />
+        <n-button @click="showAccessRequestModal = true">
+          🔐 Запрос доступа
+        </n-button>
         <n-button type="primary" @click="showNewAppointment = true">
           + Новый визит
         </n-button>
@@ -75,7 +78,7 @@
             </div>
             <div class="employee-info">
               <div class="employee-name">{{ employee.last_name }} {{ employee.first_name }}</div>
-              <div class="employee-position">{{ employee.position }}</div>
+              <div class="employee-count">{{ getEmployeeAppointmentCount(employee.id) }}</div>
             </div>
             <n-icon size="18" class="employee-menu-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -171,6 +174,13 @@
       @saved="handleBreakSaved"
     />
 
+    <!-- Access Request Modal -->
+    <AccessRequestModal
+      :visible="showAccessRequestModal"
+      @close="showAccessRequestModal = false"
+      @request-completed="handleAccessRequestCompleted"
+    />
+
     <!-- Context menu for appointments -->
     <n-dropdown
       placement="bottom-start"
@@ -192,8 +202,11 @@ import apiClient from '@/api/axios'
 import { format, parseISO } from 'date-fns'
 import AppointmentFormModal from '@/components/AppointmentFormModal.vue'
 import BreakModal from '@/components/BreakModal.vue'
+import AccessRequestModal from '@/components/AccessRequestModal.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const message = useMessage()
+const authStore = useAuthStore()
 
 // State
 const selectedDate = ref(Date.now())
@@ -209,6 +222,7 @@ const prefilledEmployee = ref(null)
 const prefilledDateTime = ref(null)
 const showBreakModal = ref(false)
 const selectedEmployeeForBreak = ref(null)
+const showAccessRequestModal = ref(false)
 const showContextMenu = ref(false)
 const contextMenuX = ref(0)
 const contextMenuY = ref(0)
@@ -330,6 +344,11 @@ function getEmployeeAppointments(employeeId) {
   }
   
   return filtered
+}
+
+function getEmployeeAppointmentCount(employeeId) {
+  // Returns the count of appointments that match current filters
+  return getEmployeeAppointments(employeeId).length
 }
 
 function getAppointmentStyle(appointment) {
@@ -508,10 +527,17 @@ async function deleteAppointmentById(appointmentId) {
   }
 }
 
-function handleBreakSaved(breakData) {
-  message.success('Перерыв добавлен в расписание')
-  // TODO: Save break to backend
-  console.log('Break data:', breakData)
+async function handleBreakSaved() {
+  // Reload appointments to show updated schedule
+  await loadAppointments()
+}
+
+function handleAccessRequestCompleted(wasApproved) {
+  if (wasApproved) {
+    message.success('Доступ к медицинской карте предоставлен')
+    // Reload patients to potentially include the new patient with access
+    loadPatients()
+  }
 }
 
 async function loadEmployees() {
@@ -626,32 +652,46 @@ function updateCurrentTime() {
 let ws = null
 
 function connectWebSocket() {
-  // TODO: get from auth store or selected branch
-  const branch_id = 3 // Default to first clinic branch (Филиал на Абая)
-  ws = new WebSocket(`ws://localhost:8001/ws/calendar/${branch_id}`)
+  // Get from auth store or default to branch 1
+  const branch_id = authStore.currentBranchId || 1
   
-  ws.onopen = () => {
-    console.log('WebSocket connected')
-  }
+  // Use WebSocket proxy through Vite
+  // In production, this will use the configured WS URL
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${wsProtocol}//${window.location.host}/ws/calendar/${branch_id}`
   
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data)
-    console.log('WebSocket message:', data)
+  try {
+    ws = new WebSocket(wsUrl)
     
-    if (data.type === 'appointment_created' || data.type === 'appointment_updated') {
-      loadAppointments()
-    } else if (data.type === 'appointment_deleted') {
-      appointments.value = appointments.value.filter((a) => a.id !== data.appointment_id)
+    ws.onopen = () => {
+      console.log('✓ WebSocket connected to', wsUrl)
     }
-  }
-  
-  ws.onerror = (error) => {
-    console.error('WebSocket error:', error)
-  }
-  
-  ws.onclose = () => {
-    console.log('WebSocket disconnected, reconnecting in 3s...')
-    setTimeout(connectWebSocket, 3000)
+    
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      console.log('WebSocket message:', data)
+      
+      if (data.type === 'appointment_created' || data.type === 'appointment_updated') {
+        loadAppointments()
+      } else if (data.type === 'appointment_deleted') {
+        appointments.value = appointments.value.filter((a) => a.id !== data.appointment_id)
+      }
+    }
+    
+    ws.onerror = (error) => {
+      console.warn('WebSocket error (will retry):', error.message || 'Connection failed')
+    }
+    
+    ws.onclose = (event) => {
+      if (event.code !== 1000) {
+        // Only log if not a normal closure
+        console.log('WebSocket disconnected (code:', event.code, '), reconnecting in 5s...')
+        setTimeout(connectWebSocket, 5000) // Increased timeout to 5s
+      }
+    }
+  } catch (error) {
+    console.warn('WebSocket connection failed:', error.message, '- will retry in 10s')
+    setTimeout(connectWebSocket, 10000)
   }
 }
 
@@ -882,6 +922,14 @@ $primary-color: #18a058;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.employee-count {
+  font-size: 16px;
+  font-weight: 700;
+  color: $text-primary;
+  text-align: center;
+  margin-top: 4px;
 }
 
 .employee-position {

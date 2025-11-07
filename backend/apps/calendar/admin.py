@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Availability, Appointment, AppointmentResource
+from .models import Availability, Appointment, AppointmentResource, Break
 
 
 @admin.register(Availability)
@@ -57,4 +57,30 @@ class AppointmentResourceAdmin(admin.ModelAdmin):
     list_display = ['appointment', 'resource', 'created_at']
     search_fields = ['resource__name']
     raw_id_fields = ['appointment', 'resource']
+
+
+@admin.register(Break)
+class BreakAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'break_type', 'date', 'start_time', 'end_time', 'is_recurring']
+    search_fields = ['employee__first_name', 'employee__last_name', 'note']
+    list_filter = ['break_type', 'is_recurring', 'date']
+    raw_id_fields = ['employee']
+    date_hierarchy = 'date'
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('employee', 'break_type', 'date')
+        }),
+        ('Время', {
+            'fields': ('start_time', 'end_time')
+        }),
+        ('Дополнительно', {
+            'fields': ('note', 'is_recurring')
+        }),
+        ('Мета', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ['created_at', 'updated_at']
 

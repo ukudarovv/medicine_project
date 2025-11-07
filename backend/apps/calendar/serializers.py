@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from .models import Availability, Appointment, AppointmentResource, Waitlist
+from .models import Availability, Appointment, AppointmentResource, Waitlist, Break
 from apps.staff.serializers import EmployeeListSerializer
 from apps.patients.serializers import PatientListSerializer
+from datetime import datetime, timedelta
 
 
 class AvailabilitySerializer(serializers.ModelSerializer):
@@ -208,4 +209,93 @@ class WaitlistSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class BreakSerializer(serializers.ModelSerializer):
+    """
+    Break serializer for employee breaks/lunch/meetings
+    """
+    employee_name = serializers.CharField(source='employee.full_name', read_only=True)
+    break_type_display = serializers.CharField(source='get_break_type_display', read_only=True)
+    
+    class Meta:
+        model = Break
+        fields = [
+            'id', 'employee', 'employee_name', 'break_type', 'break_type_display',
+            'date', 'start_time', 'end_time', 'note', 'is_recurring',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def validate(self, attrs):
+        """
+        Validate break times and conflicts
+        """
+        start_time = attrs.get('start_time')
+        end_time = attrs.get('end_time')
+        employee = attrs.get('employee')
+        date = attrs.get('date')
+        
+        # Validate times
+        if start_time and end_time and start_time >= end_time:
+            raise serializers.ValidationError('Start time must be before end time')
+        
+        # Check for overlapping breaks
+        if employee and date and start_time and end_time:
+            instance_id = self.instance.id if self.instance else None
+            overlapping = Break.objects.filter(
+                employee=employee,
+                date=date,
+                start_time__lt=end_time,
+                end_time__gt=start_time
+            )
+            
+            if instance_id:
+                overlapping = overlapping.exclude(id=instance_id)
+            
+            if overlapping.exists():
+                raise serializers.ValidationError(
+                    'Employee has overlapping breaks on this date'
+                )
+        
+        return attrs
+    
+    def create(self, validated_data):
+        """
+        Create break(s) - if recurring, create for multiple days
+        """
+        is_recurring = validated_data.pop('is_recurring', False)
+        
+        # Create the main break
+        break_obj = Break.objects.create(is_recurring=is_recurring, **validated_data)
+        
+        # If recurring, create for next 30 days
+        if is_recurring:
+            base_date = validated_data['date']
+            employee = validated_data['employee']
+            start_time = validated_data['start_time']
+            end_time = validated_data['end_time']
+            break_type = validated_data['break_type']
+            note = validated_data.get('note', '')
+            
+            for i in range(1, 31):
+                future_date = base_date + timedelta(days=i)
+                # Check if break doesn't exist on this date
+                if not Break.objects.filter(
+                    employee=employee,
+                    date=future_date,
+                    start_time=start_time,
+                    end_time=end_time
+                ).exists():
+                    Break.objects.create(
+                        employee=employee,
+                        break_type=break_type,
+                        date=future_date,
+                        start_time=start_time,
+                        end_time=end_time,
+                        note=note,
+                        is_recurring=True
+                    )
+        
+        return break_obj
 

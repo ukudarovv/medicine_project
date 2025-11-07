@@ -40,3 +40,5 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f'Всего создано складов: {created_count}')
             )
 
+
+

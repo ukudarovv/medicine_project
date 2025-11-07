@@ -59,3 +59,58 @@ export const uploadPatientFile = (data) => {
 }
 export const deletePatientFile = (id) => apiClient.delete(`/patients/files/${id}/`)
 
+// Medical Examinations
+export const getMedicalExaminations = (patientId) => apiClient.get('/patients/examinations/', { params: { patient: patientId } })
+export const getMedicalExamination = (id) => apiClient.get(`/patients/examinations/${id}/`)
+export const createMedicalExamination = (data) => apiClient.post('/patients/examinations/', data)
+export const updateMedicalExamination = (id, data) => apiClient.patch(`/patients/examinations/${id}/`, data)
+export const deleteMedicalExamination = (id) => apiClient.delete(`/patients/examinations/${id}/`)
+
+// Medical Examination - Past Diseases
+export const getMedExamPastDiseases = (examinationId) => apiClient.get('/patients/exam-past-diseases/', { params: { examination: examinationId } })
+export const createMedExamPastDisease = (data) => apiClient.post('/patients/exam-past-diseases/', data)
+export const updateMedExamPastDisease = (id, data) => apiClient.patch(`/patients/exam-past-diseases/${id}/`, data)
+export const deleteMedExamPastDisease = (id) => apiClient.delete(`/patients/exam-past-diseases/${id}/`)
+
+// Medical Examination - Vaccinations
+export const getMedExamVaccinations = (examinationId) => apiClient.get('/patients/exam-vaccinations/', { params: { examination: examinationId } })
+export const createMedExamVaccination = (data) => apiClient.post('/patients/exam-vaccinations/', data)
+export const updateMedExamVaccination = (id, data) => apiClient.patch(`/patients/exam-vaccinations/${id}/`, data)
+export const deleteMedExamVaccination = (id) => apiClient.delete(`/patients/exam-vaccinations/${id}/`)
+
+// Medical Examination - Lab Tests
+export const getMedExamLabTests = (examinationId) => apiClient.get('/patients/exam-lab-tests/', { params: { examination: examinationId } })
+export const createMedExamLabTest = (data) => apiClient.post('/patients/exam-lab-tests/', data)
+export const updateMedExamLabTest = (id, data) => apiClient.patch(`/patients/exam-lab-tests/${id}/`, data)
+export const deleteMedExamLabTest = (id) => apiClient.delete(`/patients/exam-lab-tests/${id}/`)
+
+// Treatment Plans
+export const getTreatmentPlans = (patientId) => apiClient.get('/patients/treatment-plans/', { params: { patient: patientId } })
+export const getTreatmentPlan = (id) => apiClient.get(`/patients/treatment-plans/${id}/`)
+export const createTreatmentPlan = (data) => apiClient.post('/patients/treatment-plans/', data)
+export const updateTreatmentPlan = (id, data) => apiClient.patch(`/patients/treatment-plans/${id}/`, data)
+export const deleteTreatmentPlan = (id) => apiClient.delete(`/patients/treatment-plans/${id}/`)
+export const freezeTreatmentPlanPrices = (id) => apiClient.post(`/patients/treatment-plans/${id}/freeze_prices/`)
+export const saveTreatmentPlanAsTemplate = (id, data) => apiClient.post(`/patients/treatment-plans/${id}/save_as_template/`, data)
+
+// Treatment Plan Stages
+export const getTreatmentStages = (planId) => apiClient.get('/patients/treatment-stages/', { params: { plan: planId } })
+export const createTreatmentStage = (data) => apiClient.post('/patients/treatment-stages/', data)
+export const updateTreatmentStage = (id, data) => apiClient.patch(`/patients/treatment-stages/${id}/`, data)
+export const deleteTreatmentStage = (id) => apiClient.delete(`/patients/treatment-stages/${id}/`)
+
+// Treatment Plan Stage Items
+export const getTreatmentStageItems = (stageId) => apiClient.get('/patients/treatment-stage-items/', { params: { stage: stageId } })
+export const createTreatmentStageItem = (data) => apiClient.post('/patients/treatment-stage-items/', data)
+export const updateTreatmentStageItem = (id, data) => apiClient.patch(`/patients/treatment-stage-items/${id}/`, data)
+export const deleteTreatmentStageItem = (id) => apiClient.delete(`/patients/treatment-stage-items/${id}/`)
+
+// Treatment Plan Templates
+export const getTreatmentPlanTemplates = () => apiClient.get('/patients/treatment-plan-templates/')
+export const createTreatmentPlanTemplate = (data) => apiClient.post('/patients/treatment-plan-templates/', data)
+export const updateTreatmentPlanTemplate = (id, data) => apiClient.patch(`/patients/treatment-plan-templates/${id}/`, data)
+export const deleteTreatmentPlanTemplate = (id) => apiClient.delete(`/patients/treatment-plan-templates/${id}/`)
+
+// AI Analysis
+export const getPatientAIAnalysis = (patientId) => apiClient.post(`/patients/patients/${patientId}/ai-analysis/`)
+

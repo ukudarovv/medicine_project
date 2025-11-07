@@ -11,7 +11,7 @@
           v-model:value="formData.employee"
           :options="employeeOptions"
           placeholder="Выберите сотрудника"
-          disabled
+          :disabled="!!employee"
         />
       </n-form-item>
 
@@ -84,8 +84,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useMessage } from 'naive-ui'
+import { createBreak } from '@/api/calendar'
 
 const props = defineProps({
   show: Boolean,
@@ -96,6 +97,10 @@ const props = defineProps({
   employees: {
     type: Array,
     default: () => []
+  },
+  defaultDate: {
+    type: Number,
+    default: () => Date.now()
   }
 })
 
@@ -112,13 +117,27 @@ const visible = computed({
 
 const formData = ref({
   employee: props.employee?.id || null,
-  type: 'lunch',
+  type: 'break',
   start_time: null,
   end_time: null,
   date: Date.now(),
   note: '',
   recurring: false
 })
+
+// Watch for employee changes
+watch(() => props.employee, (newEmployee) => {
+  if (newEmployee) {
+    formData.value.employee = newEmployee.id
+  }
+}, { immediate: true })
+
+// Watch for date changes
+watch(() => props.defaultDate, (newDate) => {
+  if (newDate) {
+    formData.value.date = newDate
+  }
+}, { immediate: true })
 
 const rules = {
   employee: { required: true, type: 'number', message: 'Выберите сотрудника', trigger: 'change' },
@@ -128,10 +147,16 @@ const rules = {
 
 const employeeOptions = computed(() =>
   props.employees.map((e) => ({
-    label: `${e.last_name} ${e.first_name} - ${e.position}`,
+    label: `${e.last_name} ${e.first_name}${e.position ? ' - ' + e.position : ''}`,
     value: e.id
   }))
 )
+
+function formatTimeForAPI(timestamp) {
+  if (!timestamp) return null
+  const date = new Date(timestamp)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:00`
+}
 
 async function handleSave() {
   try {
@@ -140,30 +165,32 @@ async function handleSave() {
 
     const breakData = {
       employee: formData.value.employee,
-      type: formData.value.type,
-      start_time: formData.value.start_time,
-      end_time: formData.value.end_time,
+      break_type: formData.value.type,
+      start_time: formatTimeForAPI(formData.value.start_time),
+      end_time: formatTimeForAPI(formData.value.end_time),
       date: new Date(formData.value.date).toISOString().split('T')[0],
       note: formData.value.note,
-      recurring: formData.value.recurring
+      is_recurring: formData.value.recurring
     }
 
-    emit('saved', breakData)
+    await createBreak(breakData)
     message.success('Перерыв добавлен')
+    emit('saved', breakData)
     visible.value = false
     
     // Reset form
     formData.value = {
       employee: props.employee?.id || null,
-      type: 'lunch',
+      type: 'break',
       start_time: null,
       end_time: null,
-      date: Date.now(),
+      date: props.defaultDate || Date.now(),
       note: '',
       recurring: false
     }
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Error saving break:', error)
+    message.error(error.response?.data?.detail || 'Ошибка при сохранении перерыва')
   } finally {
     saving.value = false
   }

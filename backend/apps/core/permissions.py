@@ -1,6 +1,40 @@
 from rest_framework import permissions
 
 
+class OrganizationFilterMixin:
+    """
+    Mixin to filter querysets by organization.
+    Superusers see all, users with organization see their org, users without org see nothing.
+    """
+    
+    def filter_by_organization(self, queryset, field='organization', many_to_many=False):
+        """
+        Filter queryset by organization field.
+        
+        Args:
+            queryset: Base queryset to filter
+            field: Field name to filter on (default 'organization')
+            many_to_many: Whether the field is ManyToMany (default False)
+        
+        Returns:
+            Filtered queryset
+        """
+        user = self.request.user
+        
+        if user.is_superuser:
+            return queryset
+        elif user.organization:
+            if many_to_many:
+                # For ManyToMany fields (e.g., Patient.organizations)
+                filter_kwargs = {f'{field}': user.organization}
+            else:
+                # For ForeignKey fields
+                filter_kwargs = {field: user.organization}
+            return queryset.filter(**filter_kwargs)
+        else:
+            return queryset.none()
+
+
 class IsBranchMember(permissions.BasePermission):
     """
     Permission to check if user has access to the branch
@@ -113,23 +147,31 @@ class IsMarketer(permissions.BasePermission):
         )
 
 
+class IsSuperAdmin(permissions.BasePermission):
+    """
+    Permission for super admins only (Django superuser)
+    """
+    
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and request.user.is_superuser
+
+
 class CanAccessPatient(permissions.BasePermission):
     """
     Object-level permission to check if user can access a patient
     """
     
     def has_object_permission(self, request, view, obj):
-        # Owner has access to all patients in organization
-        if request.user.role == 'owner':
-            return obj.organization == request.user.organization
+        # Superuser has access to all patients
+        if request.user.is_superuser:
+            return True
         
-        # Check if patient is in a branch the user has access to
-        branch_id = request.branch_id
-        if not branch_id:
+        # Check if user has organization
+        if not request.user.organization:
             return False
         
-        # Patient belongs to the organization
-        return obj.organization == request.user.organization
+        # Check if patient belongs to user's organization
+        return obj.has_organization(request.user.organization)
 
 
 class CanAccessVisit(permissions.BasePermission):

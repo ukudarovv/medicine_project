@@ -26,6 +26,12 @@
       :patient-id="formData.id"
       @saved="onDiagnosisSaved"
     />
+    <MedicalExaminationModal
+      v-model:show="showExaminationModal"
+      :patient-id="formData.id"
+      :examination="selectedExamination"
+      @saved="onExaminationSaved"
+    />
     <n-scrollbar style="max-height: 75vh">
       <!-- Tabs -->
       <n-tabs v-model:value="activeTab" type="line" animated>
@@ -64,7 +70,7 @@
             <!-- Основные данные -->
             <n-card title="Основные данные" :bordered="false" style="margin-top: 16px">
               <n-form-item label="id">
-                <n-input :value="formData.id || 'автоматически'" disabled />
+                <n-input :value="formData.id ? String(formData.id) : 'автоматически'" disabled />
               </n-form-item>
 
               <n-grid :cols="3" :x-gap="12">
@@ -607,13 +613,30 @@
         <!-- Медосмотры -->
         <n-tab-pane name="examinations" tab="Медосмотры">
           <n-card :bordered="false">
-            <n-button type="primary">
-              + Новый медосмотр
-            </n-button>
+            <template #header-extra>
+              <n-button type="primary" @click="openNewExamination">
+                + Новый медосмотр
+              </n-button>
+            </template>
+            
+            <n-data-table
+              v-if="medicalExaminations.length > 0"
+              :columns="examinationColumns"
+              :data="medicalExaminations"
+              :pagination="false"
+              size="small"
+            />
             <n-empty
+              v-else
               style="margin-top: 24px"
               description="В этом разделе будут храниться карты медосмотра. Пока ни одной карты не добавлено."
-            />
+            >
+              <template #extra>
+                <n-button text type="primary" @click="openNewExamination">
+                  Добавить первый медосмотр
+                </n-button>
+              </template>
+            </n-empty>
           </n-card>
         </n-tab-pane>
 
@@ -630,6 +653,94 @@
         <!-- История контактов -->
         <n-tab-pane name="contacts" tab="История контактов">
           <n-empty description="История взаимодействий с пациентом" />
+        </n-tab-pane>
+
+        <!-- AI-Заключение -->
+        <n-tab-pane name="ai" tab="AI-Заключение">
+          <n-card title="AI-Анализ пациента" size="small">
+            <template #header-extra>
+              <n-button
+                type="primary"
+                :loading="aiLoading"
+                :disabled="!isEdit"
+                @click="generateAIAnalysis"
+              >
+                <template #icon>
+                  <n-icon>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                  </n-icon>
+                </template>
+                Сгенерировать анализ
+              </n-button>
+            </template>
+
+            <n-alert
+              v-if="!isEdit"
+              type="info"
+              title="Информация"
+              style="margin-bottom: 16px"
+            >
+              Сохраните пациента перед генерацией AI-заключения
+            </n-alert>
+
+            <n-alert
+              v-if="aiError"
+              type="error"
+              :title="aiError"
+              style="margin-bottom: 16px"
+              closable
+              @close="aiError = null"
+            />
+
+            <n-spin :show="aiLoading">
+              <div v-if="aiAnalysis" style="margin-top: 16px">
+                <n-card
+                  title="Результат анализа"
+                  size="small"
+                  style="background-color: #1a1a1a; border: 1px solid #333;"
+                >
+                  <n-text style="white-space: pre-wrap; line-height: 1.8; color: #e0e0e0;">
+                    {{ aiAnalysis }}
+                  </n-text>
+                  
+                  <template #footer>
+                    <n-space justify="space-between">
+                      <n-text depth="3" style="font-size: 12px">
+                        Модель: {{ aiModel }} | Сгенерировано: {{ new Date().toLocaleString('ru-RU') }}
+                      </n-text>
+                      <n-button
+                        size="small"
+                        @click="copyAIAnalysis"
+                      >
+                        Копировать
+                      </n-button>
+                    </n-space>
+                  </template>
+                </n-card>
+              </div>
+              <n-empty
+                v-else
+                description="Нажмите кнопку 'Сгенерировать анализ' для получения AI-заключения по пациенту"
+                style="margin-top: 60px"
+              >
+                <template #icon>
+                  <n-icon size="48" color="#18a058">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                    </svg>
+                  </n-icon>
+                </template>
+              </n-empty>
+            </n-spin>
+
+            <n-divider style="margin: 24px 0" />
+
+            <n-alert type="warning" title="Важное уведомление">
+              Это вспомогательный инструмент на основе искусственного интеллекта. Все рекомендации носят информационный характер и должны быть согласованы с лечащим врачом. AI-анализ не заменяет профессиональную медицинскую консультацию.
+            </n-alert>
+          </n-card>
         </n-tab-pane>
       </n-tabs>
     </n-scrollbar>
@@ -653,10 +764,12 @@ import { ref, computed, watch, h } from 'vue'
 import { useMessage, NButton } from 'naive-ui'
 import apiClient from '@/api/axios'
 import { useAuthStore } from '@/stores/auth'
+import { getMedicalExaminations, deleteMedicalExamination, getPatientAIAnalysis } from '@/api/patients'
 import RepresentativeModal from './RepresentativeModal.vue'
 import AddPhoneModal from './AddPhoneModal.vue'
 import AddDiseaseModal from './AddDiseaseModal.vue'
 import AddDiagnosisModal from './AddDiagnosisModal.vue'
+import MedicalExaminationModal from './MedicalExaminationModal.vue'
 
 const props = defineProps({
   show: {
@@ -682,12 +795,23 @@ const showRepresentativeModal = ref(false)
 const showPhoneModal = ref(false)
 const showDiseaseModal = ref(false)
 const showDiagnosisModal = ref(false)
+const showExaminationModal = ref(false)
 
 // Data lists
 const representatives = ref([])
 const additionalPhones = ref([])
 const chronicDiseases = ref([])
 const diagnoses = ref([])
+const medicalExaminations = ref([])
+
+// AI Analysis
+const aiLoading = ref(false)
+const aiAnalysis = ref(null)
+const aiError = ref(null)
+const aiModel = ref('gemini-2.5-flash')
+
+// Selected items for editing
+const selectedExamination = ref(null)
 
 const isEdit = computed(() => !!props.patient)
 
@@ -741,6 +865,33 @@ const diagnosisColumns = [
         type: 'error',
         onClick: () => removeDiagnosis(index)
       }, { default: () => '🗑️' })
+    }
+  }
+]
+
+// Table columns for medical examinations
+const examinationColumns = [
+  { title: 'Дата осмотра', key: 'exam_date', width: 120, render: (row) => row.exam_date ? new Date(row.exam_date).toLocaleDateString('ru-RU') : '' },
+  { title: 'Вид осмотра', key: 'exam_type_display', width: 150 },
+  { title: 'Годен к работе', key: 'fit_for_work', width: 120, render: (row) => row.fit_for_work ? 'Да' : 'Нет' },
+  { title: 'Дата следующего', key: 'next_exam_date', width: 150, render: (row) => row.next_exam_date ? new Date(row.next_exam_date).toLocaleDateString('ru-RU') : '' },
+  {
+    title: 'Действия',
+    key: 'actions',
+    width: 150,
+    render: (row) => {
+      return h('div', { style: { display: 'flex', gap: '8px' } }, [
+        h(NButton, {
+          size: 'small',
+          type: 'primary',
+          onClick: () => editExamination(row)
+        }, { default: () => '✏️ Изменить' }),
+        h(NButton, {
+          size: 'small',
+          type: 'error',
+          onClick: () => removeExamination(row.id)
+        }, { default: () => '🗑️' })
+      ])
     }
   }
 ]
@@ -1112,6 +1263,101 @@ function removeDiagnosis(index) {
   diagnoses.value.splice(index, 1)
 }
 
+// Handle medical examination
+function openNewExamination() {
+  if (!isEdit.value) {
+    message.warning('Сначала сохраните пациента')
+    return
+  }
+  selectedExamination.value = null
+  showExaminationModal.value = true
+}
+
+function editExamination(examination) {
+  selectedExamination.value = examination
+  showExaminationModal.value = true
+}
+
+async function onExaminationSaved() {
+  await loadMedicalExaminations()
+  message.success('Медосмотр сохранен')
+}
+
+async function removeExamination(id) {
+  if (!confirm('Удалить этот медосмотр?')) return
+  
+  try {
+    await deleteMedicalExamination(id)
+    await loadMedicalExaminations()
+    message.success('Медосмотр удален')
+  } catch (error) {
+    console.error('Error deleting examination:', error)
+    message.error('Ошибка удаления медосмотра')
+  }
+}
+
+async function loadMedicalExaminations() {
+  if (!isEdit.value || !props.patient?.id) return
+  
+  try {
+    const response = await getMedicalExaminations(props.patient.id)
+    medicalExaminations.value = response.data.results || response.data || []
+  } catch (error) {
+    console.error('Error loading medical examinations:', error)
+  }
+}
+
+// AI Analysis functions
+async function generateAIAnalysis() {
+  if (!isEdit.value || !formData.value.id) {
+    message.warning('Сначала сохраните пациента')
+    return
+  }
+
+  aiLoading.value = true
+  aiError.value = null
+  
+  try {
+    const response = await getPatientAIAnalysis(formData.value.id)
+    
+    if (response.data.success) {
+      aiAnalysis.value = response.data.analysis
+      aiModel.value = response.data.model || 'gemini-pro'
+      message.success('AI-анализ успешно сгенерирован')
+    } else {
+      aiError.value = response.data.error || 'Не удалось сгенерировать анализ'
+      aiAnalysis.value = null
+    }
+  } catch (error) {
+    console.error('Error generating AI analysis:', error)
+    
+    if (error.response?.status === 503) {
+      aiError.value = 'AI сервис недоступен. Проверьте настройку GEMINI_API_KEY.'
+    } else if (error.response?.data?.error) {
+      aiError.value = error.response.data.error
+    } else {
+      aiError.value = 'Ошибка при генерации AI-анализа. Попробуйте позже.'
+    }
+    
+    aiAnalysis.value = null
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+function copyAIAnalysis() {
+  if (!aiAnalysis.value) return
+  
+  navigator.clipboard.writeText(aiAnalysis.value)
+    .then(() => {
+      message.success('Анализ скопирован в буфер обмена')
+    })
+    .catch((error) => {
+      console.error('Error copying to clipboard:', error)
+      message.error('Не удалось скопировать текст')
+    })
+}
+
 async function verifyIIN() {
   if (!formData.value.iin) {
     message.error('Введите ИИН')
@@ -1180,17 +1426,67 @@ async function handleSave(closeAfter = false) {
     }
   } catch (error) {
     console.error('Error saving patient:', error)
+    console.error('Error response:', error.response)
+    console.error('Error data:', error.response?.data)
+    
     if (error.response?.data) {
       const errors = error.response.data
-      const errorMsg = typeof errors === 'string' ? errors : JSON.stringify(errors)
-      message.error('Ошибка: ' + errorMsg)
+      let errorMsg = ''
+      
+      if (typeof errors === 'string') {
+        errorMsg = errors
+      } else if (typeof errors === 'object') {
+        // Format validation errors nicely
+        const errorList = []
+        for (const [field, messages] of Object.entries(errors)) {
+          const fieldName = field === 'non_field_errors' ? 'Общая ошибка' : field
+          const messageText = Array.isArray(messages) ? messages.join(', ') : messages
+          errorList.push(`${fieldName}: ${messageText}`)
+        }
+        errorMsg = errorList.join('\n')
+      } else {
+        errorMsg = 'Неизвестная ошибка валидации'
+      }
+      
+      message.error(errorMsg, {
+        duration: 5000
+      })
+    } else if (error.message) {
+      message.error(`Ошибка: ${error.message}`)
     } else {
-      message.error('Ошибка сохранения пациента')
+      message.error('Ошибка сохранения пациента. Проверьте подключение к серверу.')
     }
   } finally {
     saving.value = false
   }
 }
+
+// Watch for patient prop changes to load data when editing
+watch(
+  () => props.patient,
+  async (newPatient) => {
+    if (newPatient) {
+      // Load patient basic data into form
+      formData.value.id = newPatient.id
+      formData.value.first_name = newPatient.first_name || ''
+      formData.value.last_name = newPatient.last_name || ''
+      formData.value.middle_name = newPatient.middle_name || ''
+      formData.value.phone = newPatient.phone || ''
+      formData.value.birth_date = newPatient.birth_date ? new Date(newPatient.birth_date).getTime() : null
+      formData.value.sex = newPatient.sex || ''
+      formData.value.email = newPatient.email || ''
+      formData.value.address = newPatient.address || ''
+      formData.value.iin = newPatient.iin || ''
+      formData.value.notes = newPatient.notes || ''
+      formData.value.allergies = newPatient.allergies || ''
+      formData.value.medical_history = newPatient.medical_history || ''
+      
+      // Load related data
+      await loadMedicalExaminations()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped lang="scss">

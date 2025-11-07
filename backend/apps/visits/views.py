@@ -18,23 +18,27 @@ from .serializers import (
 class VisitViewSet(viewsets.ModelViewSet):
     queryset = Visit.objects.all()
     serializer_class = VisitSerializer
-    # Temporarily disabled for development
-    # permission_classes = [IsAuthenticated, IsBranchMember]
+    permission_classes = [IsAuthenticated, IsBranchMember]
     
     def get_queryset(self):
-        # TODO: Enable organization filtering in production
-        # user = self.request.user
-        # return Visit.objects.filter(
-        #     appointment__branch__organization=user.organization
-        # ).select_related('appointment__patient', 'appointment__employee')
-        return Visit.objects.all().select_related('appointment__patient', 'appointment__employee', 'appointment__branch')
+        user = self.request.user
+        
+        # Filter by organization
+        if user.is_superuser:
+            queryset = Visit.objects.all()
+        elif user.organization:
+            queryset = Visit.objects.filter(
+                appointment__branch__organization=user.organization
+            )
+        else:
+            queryset = Visit.objects.none()
+        
+        return queryset.select_related('appointment__patient', 'appointment__employee', 'appointment__branch')
     
     def get_permissions(self):
-        # Temporarily disabled for development
-        # if self.action in ['retrieve', 'update', 'partial_update']:
-        #     return [IsAuthenticated(), CanAccessVisit()]
-        # return super().get_permissions()
-        return []
+        if self.action in ['retrieve', 'update', 'partial_update']:
+            return [IsAuthenticated(), CanAccessVisit()]
+        return super().get_permissions()
     
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -216,3 +220,25 @@ class VisitFileViewSet(viewsets.ModelViewSet):
         uploaded_by = self.request.user if self.request.user.is_authenticated else None
         serializer.save(uploaded_by=uploaded_by)
 
+
+from rest_framework import generics
+from .serializers import VisitNoteSerializer
+
+
+class VisitNoteView(generics.CreateAPIView):
+    """
+    Save visit note/dictation from desktop app
+    POST /api/v1/visits/notes/
+    """
+    serializer_class = VisitNoteSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        
+        visit = serializer.save()
+        
+        # Return updated visit data
+        visit_serializer = VisitSerializer(visit)
+        return Response(visit_serializer.data, status=status.HTTP_201_CREATED)

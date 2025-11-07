@@ -7,10 +7,32 @@ import io
 import base64
 
 
+class OrganizationMinimalSerializer(serializers.Serializer):
+    """
+    Minimal organization serializer for user response
+    """
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    sms_sender = serializers.CharField(allow_blank=True, allow_null=True)
+    logo = serializers.SerializerMethodField()
+    
+    def get_logo(self, obj):
+        """Return logo URL if exists"""
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
+
+
 class UserSerializer(serializers.ModelSerializer):
     """
     User serializer
     """
+    organization = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    is_superuser = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = User
@@ -20,12 +42,23 @@ class UserSerializer(serializers.ModelSerializer):
             'email',
             'first_name',
             'last_name',
+            'full_name',
             'role',
             'phone',
             'is_2fa_enabled',
+            'is_superuser',
             'organization'
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'is_superuser']
+    
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip() or obj.username
+    
+    def get_organization(self, obj):
+        """Serialize organization using OrganizationMinimalSerializer"""
+        if obj.organization:
+            return OrganizationMinimalSerializer(obj.organization, context=self.context).data
+        return None
 
 
 class LoginSerializer(serializers.Serializer):
@@ -70,7 +103,7 @@ class LoginSerializer(serializers.Serializer):
         return {
             'access': str(refresh.access_token),
             'refresh': str(refresh),
-            'user': UserSerializer(user).data,
+            'user': UserSerializer(user, context=self.context).data,
             'branches': [
                 {
                     'id': access.branch.id,

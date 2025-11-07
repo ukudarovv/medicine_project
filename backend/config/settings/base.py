@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     'apps.comms',
     'apps.reports',
     'apps.telegram_bot',
+    'apps.consent',
+    # 'apps.ehr',  # Temporarily disabled - app not in container
 ]
 
 MIDDLEWARE = [
@@ -57,6 +59,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apps.core.middleware.TenantMiddleware',
+    # 'apps.consent.middleware.ConsentCheckMiddleware',  # Temporarily disabled - app not in container
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -175,6 +178,18 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
     'http://localhost:5173,http://127.0.0.1:5173'
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-access-grant-id',  # Custom header for consent system
+]
 
 # Channels
 CHANNEL_LAYERS = {
@@ -263,4 +278,24 @@ LOGS_DIR.mkdir(exist_ok=True)
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_BOT_API_SECRET = os.environ.get('TELEGRAM_BOT_API_SECRET', 'change-this-secret-in-production')
 TELEGRAM_WEBHOOK_URL = os.environ.get('TELEGRAM_WEBHOOK_URL', '')
+
+# ==================== Multi-Org Consent System Settings ====================
+
+# IIN Encryption (AES-256 via Fernet)
+# Generate key: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())
+IIN_ENCRYPTION_KEY = os.environ.get('IIN_ENCRYPTION_KEY', '')
+
+# IIN Hash Salt for SHA-256
+IIN_HASH_SALT = os.environ.get('IIN_HASH_SALT', 'change-this-salt-in-production')
+
+# Consent System Settings
+ENABLE_MULTI_ORG_CONSENT = os.environ.get('ENABLE_MULTI_ORG_CONSENT', 'true').lower() == 'true'
+CONSENT_OTP_TTL_MINUTES = int(os.environ.get('CONSENT_OTP_TTL_MINUTES', '10'))
+CONSENT_GRANT_DEFAULT_DAYS = int(os.environ.get('CONSENT_GRANT_DEFAULT_DAYS', '30'))
+CONSENT_RATE_LIMIT_PER_DAY = int(os.environ.get('CONSENT_RATE_LIMIT_PER_DAY', '3'))
+
+# ==================== Gemini AI Settings ====================
+
+# Google Gemini API Key for AI-powered patient analysis
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 

@@ -172,9 +172,9 @@ class TaxDeductionCertificate(models.Model):
         """Generate certificate number: СНВ-{year}-{org_id}-{seq}"""
         if not self.certificate_number:
             # Find max sequence for this year and organization
-            org_id = self.patient.organization.id
+            org = self.patient.organization
             last_cert = TaxDeductionCertificate.objects.filter(
-                patient__organization_id=org_id,
+                patient__organizations=org,
                 year=self.year
             ).exclude(id=self.id).order_by('-certificate_number').first()
             
@@ -188,6 +188,6 @@ class TaxDeductionCertificate(models.Model):
             else:
                 seq = 1
             
-            self.certificate_number = f"СНВ-{self.year}-{org_id}-{seq:04d}"
+            self.certificate_number = f"СНВ-{self.year}-{org.id}-{seq:04d}"
         return self.certificate_number
 

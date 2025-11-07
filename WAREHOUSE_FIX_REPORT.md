@@ -185,3 +185,5 @@ https://github.com/ukudarovv/medicine_project
 
 Если у вас возникнут дополнительные вопросы, обратитесь к документации в файле `WAREHOUSE_SETUP.md`.
 
+
+

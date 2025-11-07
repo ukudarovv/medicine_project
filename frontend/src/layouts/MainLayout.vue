@@ -32,6 +32,13 @@
         <router-link to="/reports" class="menu-item">
           📊 Отчёты
         </router-link>
+        <router-link 
+          v-if="isAdminOrOwner" 
+          to="/organizations" 
+          class="menu-item"
+        >
+          🏢 Организации
+        </router-link>
         <router-link to="/settings/clinic" class="menu-item">
           ⚙️ Настройки
         </router-link>
@@ -49,11 +56,17 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+// Check if user is admin or owner
+const isAdminOrOwner = computed(() => {
+  return authStore.user?.is_superuser || authStore.user?.role === 'owner'
+})
 
 async function handleLogout() {
   await authStore.logout()

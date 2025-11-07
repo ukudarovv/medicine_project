@@ -47,7 +47,7 @@ class SMSBalanceReportView(views.APIView):
         user = request.user
         
         messages = MessageLog.objects.filter(
-            patient__organization=user.organization
+            patient__organizations=user.organization
         ).values('created_at__date', 'cost', 'status')
         
         return Response({'sms_usage': list(messages)})
